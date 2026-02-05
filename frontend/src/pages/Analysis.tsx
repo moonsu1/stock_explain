@@ -150,19 +150,19 @@ export default function Analysis() {
   const detectAndUpdateSection = (fullText: string) => {
     const sections: StreamingSections = { ...initialSections }
     
-    // 섹션 매핑 (헤더 -> 키)
+    // 섹션 매핑 (헤더 -> 키) - 더 유연한 패턴
     const sectionMap: { pattern: RegExp; key: keyof StreamingSections; isTheme?: number }[] = [
-      { pattern: /## 오늘의 시황 요약\n([\s\S]*?)(?=\n## |$)/i, key: 'summary' },
-      { pattern: /## 시장 심리\n([\s\S]*?)(?=\n## |$)/i, key: 'sentiment' },
-      { pattern: /### 코스피\n([\s\S]*?)(?=\n### |\n## |$)/i, key: 'kospiAnalysis' },
-      { pattern: /### 코스닥\n([\s\S]*?)(?=\n### |\n## |$)/i, key: 'kosdaqAnalysis' },
-      { pattern: /### 나스닥\n([\s\S]*?)(?=\n### |\n## |$)/i, key: 'nasdaqAnalysis' },
-      { pattern: /## 기술적 지표 해석\n([\s\S]*?)(?=\n## |$)/i, key: 'technicalAnalysis' },
-      { pattern: /### 1\. ([^\n]+)\n([\s\S]*?)(?=\n### \d|\n## |$)/i, key: 'theme1', isTheme: 1 },
-      { pattern: /### 2\. ([^\n]+)\n([\s\S]*?)(?=\n### \d|\n## |$)/i, key: 'theme2', isTheme: 2 },
-      { pattern: /### 3\. ([^\n]+)\n([\s\S]*?)(?=\n### \d|\n## |$)/i, key: 'theme3', isTheme: 3 },
-      { pattern: /## 리스크 요인\n([\s\S]*?)(?=\n## |$)/i, key: 'riskFactors' },
-      { pattern: /## 투자 전략 제안\n([\s\S]*?)(?=\n## |$)/i, key: 'recommendation' },
+      { pattern: /##\s*오늘의 시황 요약\s*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'summary' },
+      { pattern: /##\s*시장 심리\s*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'sentiment' },
+      { pattern: /###?\s*코스피[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'kospiAnalysis' },
+      { pattern: /###?\s*코스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'kosdaqAnalysis' },
+      { pattern: /###?\s*나스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'nasdaqAnalysis' },
+      { pattern: /##\s*기술적 지표[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'technicalAnalysis' },
+      { pattern: /###?\s*1\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme1', isTheme: 1 },
+      { pattern: /###?\s*2\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme2', isTheme: 2 },
+      { pattern: /###?\s*3\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme3', isTheme: 3 },
+      { pattern: /##\s*리스크 요인[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'riskFactors' },
+      { pattern: /##\s*투자 전략[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'recommendation' },
     ]
     
     for (const { pattern, key, isTheme } of sectionMap) {
