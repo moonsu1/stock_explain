@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart2, X } from 'lucide-react'
 import axios from 'axios'
 
 interface IndexData {
@@ -7,6 +7,13 @@ interface IndexData {
   value: number
   change: number
   changePercent: number
+}
+
+// TradingView 심볼 매핑
+const chartSymbols: Record<string, string> = {
+  '코스피': 'KRX:KOSPI',
+  '코스닥': 'KRX:KOSDAQ', 
+  '나스닥': 'NASDAQ:NDX',
 }
 
 interface PortfolioSummary {
@@ -19,6 +26,20 @@ export default function Dashboard() {
   const [indices, setIndices] = useState<IndexData[]>([])
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [loading, setLoading] = useState(true)
+  const [chartModal, setChartModal] = useState<{ show: boolean; name: string; symbol: string }>({
+    show: false,
+    name: '',
+    symbol: ''
+  })
+
+  const openChart = (name: string) => {
+    const symbol = chartSymbols[name] || 'KRX:KOSPI'
+    setChartModal({ show: true, name, symbol })
+  }
+
+  const closeChart = () => {
+    setChartModal({ show: false, name: '', symbol: '' })
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,10 +103,17 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex justify-between items-center">
               <span className={index.change >= 0 ? 'text-up' : 'text-down'}>
                 {index.change >= 0 ? '+' : ''}{index.change.toFixed(2)} ({index.changePercent.toFixed(2)}%)
               </span>
+              <button
+                onClick={() => openChart(index.name)}
+                className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <BarChart2 className="w-4 h-4" />
+                차트
+              </button>
             </div>
           </div>
         ))}
@@ -130,6 +158,33 @@ export default function Dashboard() {
           아직 연동되지 않았다면 포트폴리오 페이지에서 로그인해주세요.
         </p>
       </div>
+
+      {/* 차트 모달 */}
+      {chartModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-semibold text-lg">{chartModal.name} 차트</h3>
+              <button
+                onClick={closeChart}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="h-[500px]">
+              <iframe
+                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${chartModal.symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=[]&theme=light&style=1&timezone=Asia%2FSeoul&withdateranges=1&showpopupbutton=1&locale=kr`}
+                style={{ width: '100%', height: '100%' }}
+                frameBorder="0"
+                allowTransparency={true}
+                scrolling="no"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
