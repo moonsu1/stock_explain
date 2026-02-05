@@ -133,7 +133,7 @@ export default function AutoTrade() {
             <h3 className="font-semibold">매매 전략</h3>
           </div>
           <button
-            onClick={() => setShowNewStrategy(true)}
+            onClick={() => _setShowNewStrategy(true)}
             className="btn-secondary text-sm"
           >
             + 전략 추가
