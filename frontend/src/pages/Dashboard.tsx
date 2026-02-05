@@ -13,7 +13,7 @@ interface IndexData {
 const chartUrls: Record<string, string> = {
   '코스피': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSPI_end.png',
   '코스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSDAQ_end.png', 
-  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',  // 로딩 실패시 링크로 대체
+  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',
 }
 
 // 네이버 금융 상세 페이지 URL
