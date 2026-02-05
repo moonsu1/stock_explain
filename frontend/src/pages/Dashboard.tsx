@@ -9,11 +9,11 @@ interface IndexData {
   changePercent: number
 }
 
-// TradingView 심볼 매핑
+// TradingView 심볼 매핑 (무료 위젯용)
 const chartSymbols: Record<string, string> = {
-  '코스피': 'KRX:KOSPI',
-  '코스닥': 'KRX:KOSDAQ', 
-  '나스닥': 'NASDAQ:NDX',
+  '코스피': 'TVC:KOSPI',
+  '코스닥': 'TVC:KOSDAQ', 
+  '나스닥': 'NASDAQ:IXIC',
 }
 
 interface PortfolioSummary {
