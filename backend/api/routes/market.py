@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
 from datetime import datetime, time
 
-from analysis.crawler import get_all_indices, get_stock_price
+from analysis.crawler import get_all_indices, get_stock_price, get_commodities_and_world
 
 router = APIRouter()
 
@@ -46,6 +46,24 @@ async def get_stock_info(code: str) -> Dict[str, Any]:
         return stock
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/commodities")
+async def get_commodities() -> List[Dict[str, Any]]:
+    """원자재 및 해외 지수 조회 (금, 은, 구리, 니케이)"""
+    try:
+        items = get_commodities_and_world()
+        return [
+            {
+                "name": item.name,
+                "value": item.value,
+                "change": item.change,
+                "changePercent": item.change_percent
+            }
+            for item in items
+        ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

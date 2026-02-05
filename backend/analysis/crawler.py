@@ -139,6 +139,133 @@ def get_all_indices() -> List[IndexData]:
     ]
 
 
+def get_nikkei_index() -> IndexData:
+    """니케이225 지수 조회"""
+    from bs4 import BeautifulSoup
+    import re
+    
+    try:
+        url = "https://finance.naver.com/world/sise.naver?symbol=NI225"
+        response = requests.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, "lxml")
+        
+        value = 0.0
+        today_elem = soup.select_one(".today")
+        if today_elem:
+            em_elem = today_elem.select_one("em")
+            if em_elem:
+                spans = em_elem.select("span")
+                value_parts = []
+                for span in spans:
+                    text = span.get_text(strip=True)
+                    if text and (text[0].isdigit() or text == "."):
+                        value_parts.append(text)
+                if value_parts:
+                    value = float("".join(value_parts).replace(",", ""))
+        
+        change = 0.0
+        change_pct = 0.0
+        
+        exday_elem = soup.select_one(".no_exday")
+        if exday_elem:
+            text = exday_elem.get_text()
+            numbers = re.findall(r'[\d,]+\.?\d*', text)
+            if len(numbers) >= 1:
+                change = float(numbers[0].replace(",", ""))
+            if len(numbers) >= 2:
+                change_pct = float(numbers[1].replace(",", ""))
+            
+            if "down" in str(exday_elem) or "하락" in text:
+                change = -abs(change)
+                change_pct = -abs(change_pct)
+        
+        if value > 0:
+            return IndexData("니케이225", value, change, change_pct)
+            
+    except Exception as e:
+        print(f"[Error] Nikkei crawl failed: {e}")
+    
+    return IndexData("니케이225", 0.0, 0.0, 0.0)
+
+
+def get_commodity_price(code: str, name: str) -> IndexData:
+    """원자재 시세 조회 (금, 은, 구리)"""
+    from bs4 import BeautifulSoup
+    import re
+    
+    try:
+        url = f"https://finance.naver.com/marketindex/worldGoldDetail.naver?marketindexCd={code}"
+        response = requests.get(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, "lxml")
+        
+        # 현재가
+        value = 0.0
+        value_elem = soup.select_one(".no_today .blind")
+        if value_elem:
+            value = float(value_elem.get_text(strip=True).replace(",", ""))
+        
+        # 전일대비
+        change = 0.0
+        change_pct = 0.0
+        
+        change_elem = soup.select_one(".no_exday .blind")
+        if change_elem:
+            text = change_elem.get_text(strip=True)
+            numbers = re.findall(r'[\d,]+\.?\d*', text)
+            if numbers:
+                change = float(numbers[0].replace(",", ""))
+        
+        # 등락 방향
+        down_elem = soup.select_one(".no_exday.down, .no_exday .ico.down")
+        if down_elem or (soup.select_one(".no_exday") and "down" in str(soup.select_one(".no_exday"))):
+            change = -abs(change)
+        
+        # 등락률 계산
+        if value > 0 and change != 0:
+            change_pct = (change / (value - change)) * 100
+        
+        if value > 0:
+            return IndexData(name, value, change, change_pct)
+            
+    except Exception as e:
+        print(f"[Error] Commodity crawl failed ({name}): {e}")
+    
+    return IndexData(name, 0.0, 0.0, 0.0)
+
+
+def get_gold_price() -> IndexData:
+    """금 시세 (COMEX)"""
+    return get_commodity_price("CMDT_GC", "금")
+
+
+def get_silver_price() -> IndexData:
+    """은 시세 (COMEX)"""
+    return get_commodity_price("CMDT_SI", "은")
+
+
+def get_copper_price() -> IndexData:
+    """구리 시세 (COMEX)"""
+    return get_commodity_price("CMDT_HG", "구리")
+
+
+def get_commodities_and_world() -> List[IndexData]:
+    """원자재 및 해외 지수 조회"""
+    return [
+        get_nikkei_index(),
+        get_gold_price(),
+        get_silver_price(),
+        get_copper_price()
+    ]
+
+
 def get_stock_price(code: str) -> Optional[Dict[str, Any]]:
     """개별 종목 시세 조회 (네이버 JSON API)"""
     try:
