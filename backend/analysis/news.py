@@ -48,50 +48,53 @@ class NewsCrawler:
             
             soup = BeautifulSoup(response.text, "lxml")
             
-            # 뉴스 목록 파싱 - 다양한 셀렉터 시도
-            news_items = soup.select("dd") or soup.select(".articleSubject a") or soup.select(".block1 li")
+            # 뉴스 목록 파싱 - li 태그 기반
+            news_items = soup.select("ul li")
             
             for item in news_items:
                 try:
                     # 링크 찾기
-                    if item.name == "a":
-                        title_link = item
-                    else:
-                        title_link = item.select_one("a")
-                    
+                    title_link = item.select_one("a")
                     if not title_link:
                         continue
                     
                     title = title_link.get_text(strip=True)
                     # 제목이 너무 짧으면 스킵
-                    if not title or len(title) < 5:
+                    if not title or len(title) < 10:
                         continue
                     
                     href = title_link.get("href", "")
                     
-                    # 절대 URL로 변환 + 뉴스 기사 직접 링크로 변환
+                    # news_read.naver 링크만 처리
+                    if "news_read.naver" not in href:
+                        continue
+                    
+                    # 절대 URL로 변환
                     if href and not href.startswith("http"):
-                        if href.startswith("/"):
-                            href = f"https://finance.naver.com{href}"
-                        else:
-                            href = f"https://finance.naver.com/{href}"
+                        href = f"https://finance.naver.com{href}"
                     
                     # news_read.naver 링크를 n.news.naver.com 직접 링크로 변환
-                    if "article_id=" in href and "office_id=" in href:
-                        import re
-                        article_match = re.search(r'article_id=(\d+)', href)
-                        office_match = re.search(r'office_id=(\d+)', href)
-                        if article_match and office_match:
-                            href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
+                    article_match = re.search(r'article_id=(\d+)', href)
+                    office_match = re.search(r'office_id=(\d+)', href)
+                    if article_match and office_match:
+                        href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
                     
-                    # 출처와 시간
+                    # 출처와 시간 찾기 - 전체 텍스트에서 추출
+                    full_text = item.get_text()
                     source = "네이버금융"
                     time_str = ""
                     
-                    # 시간 찾기
-                    time_elem = item.select_one(".wdate") or item.select_one(".time") or item.select_one("span")
-                    if time_elem:
-                        time_str = time_elem.get_text(strip=True)
+                    # "출처|YYYY-MM-DD HH:MM" 형식 파싱
+                    time_match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', full_text)
+                    if time_match:
+                        # YYYY-MM-DD HH:MM -> HH:MM 으로 변환
+                        full_time = time_match.group(1)
+                        time_str = full_time.split()[-1]  # HH:MM 만 추출
+                    
+                    # 출처 찾기 (시간 앞의 텍스트)
+                    source_match = re.search(r'([가-힣A-Za-z]+)\|?\d{4}-\d{2}-\d{2}', full_text)
+                    if source_match:
+                        source = source_match.group(1)
                     
                     if not time_str:
                         time_str = datetime.now().strftime("%H:%M")
@@ -130,32 +133,40 @@ class NewsCrawler:
             soup = BeautifulSoup(response.text, "lxml")
             
             # 뉴스 리스트
-            items = soup.select(".realtimeNewsList li, .newsList li, dd")
+            items = soup.select("ul li")
             
-            for item in items[:limit]:
+            for item in items[:limit * 2]:  # 더 많이 검색해서 필터링
                 try:
                     link = item.select_one("a")
                     if not link:
                         continue
                     
                     title = link.get_text(strip=True)
-                    if not title or len(title) < 5:
+                    if not title or len(title) < 10:
                         continue
                     
                     href = link.get("href", "")
+                    if "news_read.naver" not in href:
+                        continue
+                        
                     if href and not href.startswith("http"):
                         href = f"https://finance.naver.com{href}"
                     
                     # news_read.naver 링크를 n.news.naver.com 직접 링크로 변환
-                    if "article_id=" in href and "office_id=" in href:
-                        article_match = re.search(r'article_id=(\d+)', href)
-                        office_match = re.search(r'office_id=(\d+)', href)
-                        if article_match and office_match:
-                            href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
+                    article_match = re.search(r'article_id=(\d+)', href)
+                    office_match = re.search(r'office_id=(\d+)', href)
+                    if article_match and office_match:
+                        href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
                     
-                    # 시간 추출
-                    time_elem = item.select_one(".time, .wdate, span")
-                    time_str = time_elem.get_text(strip=True) if time_elem else ""
+                    # 시간 추출 - 전체 텍스트에서 파싱
+                    full_text = item.get_text()
+                    time_str = ""
+                    
+                    time_match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', full_text)
+                    if time_match:
+                        full_time = time_match.group(1)
+                        time_str = full_time.split()[-1]
+                    
                     if not time_str:
                         time_str = datetime.now().strftime("%H:%M")
                     
@@ -165,6 +176,9 @@ class NewsCrawler:
                         time=time_str,
                         url=href
                     ))
+                    
+                    if len(news_list) >= limit:
+                        break
                 except:
                     continue
                     
