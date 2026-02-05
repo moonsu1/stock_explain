@@ -31,15 +31,15 @@ export default function Layout() {
                   end={item.to === '/'}
                   className={({ isActive }) =>
                     clsx(
-                      'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                      'flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap',
                       isActive
                         ? 'bg-primary-50 text-primary-700'
                         : 'text-gray-600 hover:bg-gray-100'
                     )
                   }
                 >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">{item.label}</span>
                 </NavLink>
               ))}
             </nav>
