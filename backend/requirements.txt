@@ -1,0 +1,36 @@
+# 키움증권 주식 투자 시스템 - Backend Dependencies
+
+# 웹 프레임워크
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# 키움증권 API
+pykiwoom==0.4.1
+pywin32==306
+
+# 데이터 처리
+pandas==2.1.4
+numpy==1.26.3
+
+# 뉴스 크롤링
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# AI 분석
+openai==1.12.0
+
+# 데이터베이스
+sqlalchemy==2.0.25
+
+# 스케줄링
+apscheduler==3.10.4
+
+# 환경변수
+python-dotenv==1.0.0
+
+# CORS
+python-multipart==0.0.6
+
+# 유틸리티
+httpx==0.26.0
