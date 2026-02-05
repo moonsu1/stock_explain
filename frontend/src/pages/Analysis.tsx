@@ -197,8 +197,9 @@ export default function Analysis() {
     setAnalysis(null)
     
     try {
-      console.log('[Stream] Fetching /api/analysis/generate/stream')
-      const response = await fetch('/api/analysis/generate/stream')
+      const apiUrl = import.meta.env.VITE_API_URL || ''
+      console.log('[Stream] Fetching streaming API')
+      const response = await fetch(`${apiUrl}/api/analysis/generate/stream`)
       console.log('[Stream] Response status:', response.status, response.ok)
       
       if (!response.ok) {
