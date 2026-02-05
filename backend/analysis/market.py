@@ -217,7 +217,7 @@ class MarketAnalyzer:
                         "content": prompt
                     }
                 ],
-                max_completion_tokens=self.max_tokens
+                max_tokens=self.max_tokens
             )
             
             content = response.choices[0].message.content
@@ -392,7 +392,7 @@ class MarketAnalyzer:
                         "content": prompt
                     }
                 ],
-                max_completion_tokens=self.max_tokens,
+                max_tokens=self.max_tokens,
                 stream=True
             )
             
