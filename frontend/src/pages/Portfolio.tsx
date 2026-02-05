@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { RefreshCw, LogIn, TrendingUp, TrendingDown } from 'lucide-react'
 import axios from 'axios'
 

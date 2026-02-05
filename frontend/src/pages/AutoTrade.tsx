@@ -43,7 +43,7 @@ export default function AutoTrade() {
     { id: '1', time: '2024-02-05 14:23:15', type: 'buy', stockName: 'KODEX 코스닥150 레버리지', quantity: 50, price: 9150, reason: 'RSI 28 도달, 매수 신호' },
     { id: '2', time: '2024-02-04 10:05:32', type: 'sell', stockName: 'KODEX 코스닥150 레버리지', quantity: 30, price: 9380, reason: 'RSI 72 도달, 매도 신호' },
   ])
-  const [showNewStrategy, setShowNewStrategy] = useState(false)
+  const [_showNewStrategy, _setShowNewStrategy] = useState(false)
 
   const toggleRunning = () => {
     setIsRunning(!isRunning)
