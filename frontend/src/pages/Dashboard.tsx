@@ -9,11 +9,11 @@ interface IndexData {
   changePercent: number
 }
 
-// 네이버 금융 차트 URL 매핑 (해외지수는 별도 URL)
+// 네이버 금융 차트 URL 매핑
 const chartUrls: Record<string, string> = {
   '코스피': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSPI_end.png',
   '코스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSDAQ_end.png', 
-  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',
+  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',  // 로딩 실패시 링크로 대체
 }
 
 // 네이버 금융 상세 페이지 URL
@@ -38,13 +38,16 @@ export default function Dashboard() {
     name: '',
     symbol: ''
   })
+  const [chartError, setChartError] = useState(false)
 
   const openChart = (name: string) => {
+    setChartError(false)
     setChartModal({ show: true, name, symbol: '' })
   }
 
   const closeChart = () => {
     setChartModal({ show: false, name: '', symbol: '' })
+    setChartError(false)
   }
 
   useEffect(() => {
@@ -179,20 +182,17 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="p-4">
-              {chartModal.name === '나스닥' ? (
+              {chartError ? (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border">
-                  <p className="text-gray-600 mb-4">나스닥 차트는 네이버 금융에서 확인해주세요</p>
+                  <p className="text-gray-600 mb-2">차트 이미지를 불러올 수 없습니다</p>
+                  <p className="text-sm text-gray-500">아래 버튼을 눌러 네이버 금융에서 확인해주세요</p>
                 </div>
               ) : (
                 <img 
                   src={`${chartUrls[chartModal.name]}?t=${Date.now()}`}
                   alt={`${chartModal.name} 차트`}
                   className="w-full rounded-lg border"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'none'
-                    target.parentElement!.innerHTML = '<div class="text-center py-8 bg-gray-50 rounded-lg border"><p class="text-gray-600">차트를 불러올 수 없습니다</p></div>'
-                  }}
+                  onError={() => setChartError(true)}
                 />
               )}
               <div className="mt-4 flex gap-2">
