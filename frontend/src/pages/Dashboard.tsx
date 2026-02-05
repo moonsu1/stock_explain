@@ -9,11 +9,18 @@ interface IndexData {
   changePercent: number
 }
 
-// TradingView 심볼 매핑 (무료 위젯용)
-const chartSymbols: Record<string, string> = {
-  '코스피': 'TVC:KOSPI',
-  '코스닥': 'TVC:KOSDAQ', 
-  '나스닥': 'NASDAQ:IXIC',
+// 네이버 금융 차트 URL 매핑
+const chartUrls: Record<string, string> = {
+  '코스피': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSPI_end.png',
+  '코스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSDAQ_end.png', 
+  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/NASD@IXIC_end.png',
+}
+
+// 네이버 금융 상세 페이지 URL
+const detailUrls: Record<string, string> = {
+  '코스피': 'https://m.stock.naver.com/domestic/index/KOSPI/total',
+  '코스닥': 'https://m.stock.naver.com/domestic/index/KOSDAQ/total',
+  '나스닥': 'https://m.stock.naver.com/worldstock/index/.IXIC/total',
 }
 
 interface PortfolioSummary {
@@ -33,8 +40,7 @@ export default function Dashboard() {
   })
 
   const openChart = (name: string) => {
-    const symbol = chartSymbols[name] || 'KRX:KOSPI'
-    setChartModal({ show: true, name, symbol })
+    setChartModal({ show: true, name, symbol: '' })
   }
 
   const closeChart = () => {
@@ -162,7 +168,7 @@ export default function Dashboard() {
       {/* 차트 모달 */}
       {chartModal.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="font-semibold text-lg">{chartModal.name} 차트</h3>
               <button
@@ -172,15 +178,28 @@ export default function Dashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="h-[500px]">
-              <iframe
-                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_widget&symbol=${chartModal.symbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=[]&theme=light&style=1&timezone=Asia%2FSeoul&withdateranges=1&showpopupbutton=1&locale=kr`}
-                style={{ width: '100%', height: '100%' }}
-                frameBorder="0"
-                allowTransparency={true}
-                scrolling="no"
-                allowFullScreen
+            <div className="p-4">
+              <img 
+                src={`${chartUrls[chartModal.name]}?t=${Date.now()}`}
+                alt={`${chartModal.name} 차트`}
+                className="w-full rounded-lg border"
               />
+              <div className="mt-4 flex gap-2">
+                <a
+                  href={detailUrls[chartModal.name]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 btn-primary text-center"
+                >
+                  네이버 금융에서 상세보기
+                </a>
+                <button
+                  onClick={closeChart}
+                  className="btn-secondary"
+                >
+                  닫기
+                </button>
+              </div>
             </div>
           </div>
         </div>
