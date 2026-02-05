@@ -69,12 +69,20 @@ class NewsCrawler:
                     
                     href = title_link.get("href", "")
                     
-                    # 절대 URL로 변환
+                    # 절대 URL로 변환 + 뉴스 기사 직접 링크로 변환
                     if href and not href.startswith("http"):
                         if href.startswith("/"):
                             href = f"https://finance.naver.com{href}"
                         else:
                             href = f"https://finance.naver.com/{href}"
+                    
+                    # news_read.naver 링크를 n.news.naver.com 직접 링크로 변환
+                    if "article_id=" in href and "office_id=" in href:
+                        import re
+                        article_match = re.search(r'article_id=(\d+)', href)
+                        office_match = re.search(r'office_id=(\d+)', href)
+                        if article_match and office_match:
+                            href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
                     
                     # 출처와 시간
                     source = "네이버금융"
@@ -138,6 +146,13 @@ class NewsCrawler:
                     if href and not href.startswith("http"):
                         href = f"https://finance.naver.com{href}"
                     
+                    # news_read.naver 링크를 n.news.naver.com 직접 링크로 변환
+                    if "article_id=" in href and "office_id=" in href:
+                        article_match = re.search(r'article_id=(\d+)', href)
+                        office_match = re.search(r'office_id=(\d+)', href)
+                        if article_match and office_match:
+                            href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
+                    
                     # 시간 추출
                     time_elem = item.select_one(".time, .wdate, span")
                     time_str = time_elem.get_text(strip=True) if time_elem else ""
@@ -186,6 +201,13 @@ class NewsCrawler:
                     
                     if href and not href.startswith("http"):
                         href = f"https://finance.naver.com{href}"
+                    
+                    # news_read.naver 링크를 n.news.naver.com 직접 링크로 변환
+                    if "article_id=" in href and "office_id=" in href:
+                        article_match = re.search(r'article_id=(\d+)', href)
+                        office_match = re.search(r'office_id=(\d+)', href)
+                        if article_match and office_match:
+                            href = f"https://n.news.naver.com/mnews/article/{office_match.group(1)}/{article_match.group(1)}"
                     
                     source = cols[1].get_text(strip=True) if len(cols) > 1 else ""
                     time_str = cols[2].get_text(strip=True) if len(cols) > 2 else ""

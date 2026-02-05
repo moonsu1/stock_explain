@@ -9,18 +9,18 @@ interface IndexData {
   changePercent: number
 }
 
-// 네이버 금융 차트 URL 매핑
+// 네이버 금융 차트 URL 매핑 (해외지수는 별도 URL)
 const chartUrls: Record<string, string> = {
   '코스피': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSPI_end.png',
   '코스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/KOSDAQ_end.png', 
-  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/mobile/candle/day/NASD@IXIC_end.png',
+  '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',
 }
 
 // 네이버 금융 상세 페이지 URL
 const detailUrls: Record<string, string> = {
   '코스피': 'https://m.stock.naver.com/domestic/index/KOSPI/total',
   '코스닥': 'https://m.stock.naver.com/domestic/index/KOSDAQ/total',
-  '나스닥': 'https://m.stock.naver.com/worldstock/index/.IXIC/total',
+  '나스닥': 'https://finance.naver.com/world/sise.naver?symbol=NAS@IXIC',
 }
 
 interface PortfolioSummary {
@@ -179,11 +179,22 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="p-4">
-              <img 
-                src={`${chartUrls[chartModal.name]}?t=${Date.now()}`}
-                alt={`${chartModal.name} 차트`}
-                className="w-full rounded-lg border"
-              />
+              {chartModal.name === '나스닥' ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border">
+                  <p className="text-gray-600 mb-4">나스닥 차트는 네이버 금융에서 확인해주세요</p>
+                </div>
+              ) : (
+                <img 
+                  src={`${chartUrls[chartModal.name]}?t=${Date.now()}`}
+                  alt={`${chartModal.name} 차트`}
+                  className="w-full rounded-lg border"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.parentElement!.innerHTML = '<div class="text-center py-8 bg-gray-50 rounded-lg border"><p class="text-gray-600">차트를 불러올 수 없습니다</p></div>'
+                  }}
+                />
+              )}
               <div className="mt-4 flex gap-2">
                 <a
                   href={detailUrls[chartModal.name]}
