@@ -140,17 +140,18 @@ def get_all_indices() -> List[IndexData]:
 
 
 def get_nikkei_index() -> IndexData:
-    """니케이225 지수 조회"""
+    """니케이225 지수 조회 (네이버 해외지수 JPX@NI225)"""
     from bs4 import BeautifulSoup
     import re
     
     try:
-        url = "https://finance.naver.com/world/sise.naver?symbol=NI225"
+        url = "https://finance.naver.com/world/sise.naver?symbol=JPX@NI225"
         response = requests.get(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9",
         }, timeout=10)
         response.raise_for_status()
-        
+        response.encoding = response.apparent_encoding or "utf-8"
         soup = BeautifulSoup(response.text, "lxml")
         
         value = 0.0
@@ -193,43 +194,65 @@ def get_nikkei_index() -> IndexData:
 
 
 def get_commodity_price(code: str, name: str) -> IndexData:
-    """원자재 시세 조회 (금, 은, 구리)"""
+    """원자재 시세 조회 (금, 은, 구리) - worldGoldDetail 동일 템플릿 사용"""
     from bs4 import BeautifulSoup
     import re
     
     try:
         url = f"https://finance.naver.com/marketindex/worldGoldDetail.naver?marketindexCd={code}"
         response = requests.get(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "ko-KR,ko;q=0.9",
         }, timeout=10)
         response.raise_for_status()
+        response.encoding = response.apparent_encoding or "utf-8"
+        html = response.text
+        soup = BeautifulSoup(html, "lxml")
         
-        soup = BeautifulSoup(response.text, "lxml")
-        
-        # 현재가
+        # 현재가: .no_today .blind 우선, 없으면 .no_today 전체 텍스트에서 숫자 추출
         value = 0.0
         value_elem = soup.select_one(".no_today .blind")
         if value_elem:
             value = float(value_elem.get_text(strip=True).replace(",", ""))
+        else:
+            today_elem = soup.select_one(".no_today")
+            if today_elem:
+                nums = re.findall(r'[\d,]+\.?\d*', today_elem.get_text())
+                if nums:
+                    value = float(nums[0].replace(",", ""))
         
-        # 전일대비
+        # 전일대비·등락률: .no_exday .blind 우선, 없으면 .no_exday 전체에서 추출
         change = 0.0
         change_pct = 0.0
-        
         change_elem = soup.select_one(".no_exday .blind")
         if change_elem:
             text = change_elem.get_text(strip=True)
             numbers = re.findall(r'[\d,]+\.?\d*', text)
             if numbers:
                 change = float(numbers[0].replace(",", ""))
+            if len(numbers) >= 2:
+                change_pct = float(numbers[1].replace(",", ""))
+        else:
+            exday_elem = soup.select_one(".no_exday")
+            if exday_elem:
+                text = exday_elem.get_text()
+                numbers = re.findall(r'[\d,]+\.?\d*', text)
+                if len(numbers) >= 1:
+                    change = float(numbers[0].replace(",", ""))
+                if len(numbers) >= 2:
+                    change_pct = float(numbers[1].replace(",", ""))
+                if "down" in str(exday_elem) or "하락" in text or "minus" in str(exday_elem).lower():
+                    change = -abs(change)
+                    change_pct = -abs(change_pct) if change_pct else change_pct
         
-        # 등락 방향
+        # 등락 방향 (blind 없을 때)
         down_elem = soup.select_one(".no_exday.down, .no_exday .ico.down")
         if down_elem or (soup.select_one(".no_exday") and "down" in str(soup.select_one(".no_exday"))):
             change = -abs(change)
+            if change_pct and change_pct > 0:
+                change_pct = -abs(change_pct)
         
-        # 등락률 계산
-        if value > 0 and change != 0:
+        if value > 0 and change_pct == 0 and change != 0:
             change_pct = (change / (value - change)) * 100
         
         if value > 0:
