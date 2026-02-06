@@ -13,6 +13,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 import uvicorn
 
 # 환경변수 로드
@@ -54,6 +57,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# OPTIONS preflight 항상 200 (CORS 400 방지) - CORS보다 먼저 실행되도록 나중에 추가
+class OptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return Response(status_code=200, headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Max-Age": "86400",
+            })
+
 # CORS: FRONTEND_ORIGIN 없으면 모든 origin 허용(credentials=False) → Vercel 등 어디서든 호출 가능
 _frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip()
 if _frontend_origin:
@@ -72,6 +86,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(OptionsMiddleware)  # OPTIONS 200 처리 (요청 시 가장 먼저 실행)
 
 # 라우터 등록
 app.include_router(market.router, prefix="/api/market", tags=["Market"])

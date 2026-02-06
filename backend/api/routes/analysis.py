@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 import logging
 from fastapi import APIRouter, HTTPException, Body
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -53,6 +53,12 @@ async def get_stock_news(code: str) -> List[Dict[str, Any]]:
         return [n.to_dict() for n in news]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.api_route("/generate", methods=["OPTIONS"])
+async def generate_options():
+    """CORS preflight: OPTIONS 요청 시 200 반환 (400 방지)"""
+    return Response(status_code=200)
 
 
 @router.post("/generate")
