@@ -54,22 +54,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정 (allow_credentials=True 시 와일드카드 불가 → 도메인 명시)
-# Vite가 5173 사용 중이면 5174, 5175... 로 뜨므로 로컬 개발 포트 여러 개 허용
-_cors_origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-]
+# CORS: FRONTEND_ORIGIN 없으면 모든 origin 허용(credentials=False) → Vercel 등 어디서든 호출 가능
 _frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip()
 if _frontend_origin:
-    _cors_origins.extend([o.strip() for o in _frontend_origin.split(",") if o.strip()])
+    _cors_origins = [
+        "http://localhost:3000", "http://localhost:5173", "http://localhost:5174",
+        "http://localhost:5175", "http://localhost:5176",
+    ] + [o.strip() for o in _frontend_origin.split(",") if o.strip()]
+    _cors_credentials = True
+else:
+    _cors_origins = ["*"]
+    _cors_credentials = False
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=_cors_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
