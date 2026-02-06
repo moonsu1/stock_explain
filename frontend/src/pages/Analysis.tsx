@@ -113,6 +113,9 @@ export default function Analysis() {
   // 구조화된 스트리밍 상태
   const [streamingSections, setStreamingSections] = useState<StreamingSections>(initialSections)
   const [currentSection, setCurrentSection] = useState<string>('')
+  // 에러 메시지 (화면에 표시)
+  const [analysisError, setAnalysisError] = useState<string>('')
+  const [streamError, setStreamError] = useState<string>('')
 
   useEffect(() => {
     fetchNews()
@@ -142,6 +145,7 @@ export default function Analysis() {
 
   const generateAnalysis = async () => {
     setAnalysisLoading(true)
+    setAnalysisError('')
     try {
       let holdings: string[] = []
       try {
@@ -154,8 +158,12 @@ export default function Analysis() {
       }
       const response = await axios.post('/api/analysis/generate', { holdings })
       setAnalysis(response.data)
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('분석 생성 실패:', error)
+      const msg = axios.isAxiosError(error) && error.response?.data?.detail
+        ? String(error.response.data.detail)
+        : error instanceof Error ? error.message : '분석 생성에 실패했습니다.'
+      setAnalysisError(msg)
     } finally {
       setAnalysisLoading(false)
     }
@@ -211,6 +219,7 @@ export default function Analysis() {
     setStreamingSections(initialSections)
     setCurrentSection('')
     setStatusMessage('연결 중...')
+    setStreamError('')
     setAnalysis(null)
     
     try {
@@ -232,7 +241,9 @@ export default function Analysis() {
       console.log('[Stream] Response status:', response.status, response.ok)
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errMsg = `연결 실패 (${response.status}). 백엔드 URL과 OPENAI_API_KEY를 확인하세요.`
+        setStreamError(errMsg)
+        throw new Error(errMsg)
       }
       
       const reader = response.body?.getReader()
@@ -274,7 +285,9 @@ export default function Analysis() {
             }
             
             if (data.startsWith('[ERROR]')) {
-              setStatusMessage(data.replace('[ERROR] ', ''))
+              const errMsg = data.replace('[ERROR] ', '').trim()
+              setStreamError(errMsg)
+              setStatusMessage('')
               setIsStreaming(false)
               continue
             }
@@ -291,7 +304,8 @@ export default function Analysis() {
       }
     } catch (error) {
       console.error('스트리밍 분석 실패:', error)
-      setStatusMessage('분석 중 오류가 발생했습니다.')
+      setStreamError(error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.')
+      setStatusMessage('')
     } finally {
       setIsStreaming(false)
     }
@@ -331,6 +345,20 @@ export default function Analysis() {
           </button>
         </div>
       </div>
+
+      {/* 에러 메시지 표시 */}
+      {analysisError && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-700 text-sm">
+          <span className="font-medium">구조화 분석 실패: </span>
+          {analysisError}
+        </div>
+      )}
+      {streamError && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-700 text-sm">
+          <span className="font-medium">AI 실시간 분석 오류: </span>
+          {streamError}
+        </div>
+      )}
 
       {/* 스트리밍 분석 결과 - 구조화된 UI */}
       {(isStreaming || streamingText) && (

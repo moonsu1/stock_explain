@@ -8,13 +8,16 @@ import os
 # 부모 디렉토리를 path에 추가
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from fastapi import APIRouter, HTTPException
+import logging
+from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import StreamingResponse
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from analysis.market import MarketAnalyzer, market_analyzer
 from analysis.news import news_crawler
+
+logger = logging.getLogger(__name__)
 
 # API 호출 시 사용할 analyzer (새로 생성)
 _analyzer = None
@@ -53,16 +56,24 @@ async def get_stock_news(code: str) -> List[Dict[str, Any]]:
 
 
 @router.post("/generate")
-async def generate_analysis(request: AnalysisRequest = None) -> Dict[str, Any]:
-    """AI 시황 분석 생성"""
+async def generate_analysis(request: Optional[AnalysisRequest] = Body(None)) -> Dict[str, Any]:
+    """AI 시황 분석 생성 (body 없음/빈 body 시 holdings=[] 로 진행)"""
+    holdings = request.holdings if request else None
     try:
-        holdings = request.holdings if request else None
         analyzer = get_analyzer()
         print(f"[API] Analyzer client: {analyzer.client is not None}")
         analysis = analyzer.generate_analysis(holdings)
         return analysis.to_dict()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("generate_analysis failed: %s", e)
+        try:
+            analyzer = get_analyzer()
+            indices, news, technical_indicators, _ = analyzer._collect_market_data(holdings)
+            mock = analyzer._generate_mock_analysis(indices, news, technical_indicators, holdings)
+            return mock.to_dict()
+        except Exception as fallback_e:
+            logger.exception("mock fallback failed: %s", fallback_e)
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/generate/stream")
