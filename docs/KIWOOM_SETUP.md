@@ -47,7 +47,7 @@ KIWOOM_ACCOUNT_NO=64969257-10
 
 | 로그/메시지 | 의미 | 조치 |
 |-------------|------|------|
-| **8005 / Token이 유효하지 않습니다** | 인증 토큰 만료 또는 앱키/시크릿 오류 | Railway(또는 배포 환경)에서 `KIWOOM_APPKEY`, `KIWOOM_SECRETKEY` 값 재확인. 공백·줄바꿈 없이 붙여넣기. 재연결 후 한 번 자동 재시도함. |
+| **8005 / Token이 유효하지 않습니다** | 인증 토큰 만료 또는 앱키/시크릿 오류 | Railway 등에서 **`KIWOOM_APPKEY`**·**`KIWOOM_SECRETKEY`** 또는 **`KIWOOM_API_KEY`**·**`KIWOOM_API_SECRET`** 또는 **`kiwoom_appkey`**·**`kiwoom_secretkey`** 중 하나로 설정. 공백·줄바꿈 없이 붙여넣기. 재연결 후 1회 자동 재시도함. |
 
 ---
 

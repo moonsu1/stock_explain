@@ -11,16 +11,25 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-_def_app = os.getenv("KIWOOM_APPKEY")
-_def_sec = os.getenv("KIWOOM_SECRETKEY")
-# PyPI kiwoom-rest-api는 KIWOOM_API_KEY, KIWOOM_API_SECRET 사용
-if _def_app is not None:
-    os.environ.setdefault("KIWOOM_API_KEY", _def_app)
-if _def_sec is not None:
-    os.environ.setdefault("KIWOOM_API_SECRET", _def_sec)
-if _def_app is not None:
+# 앱키/시크릿: 여러 이름 지원 (Railway 등에서 kiwoom_appkey만 쓸 수 있음)
+_def_app = (
+    os.getenv("KIWOOM_APPKEY")
+    or os.getenv("KIWOOM_API_KEY")
+    or os.getenv("kiwoom_appkey")
+)
+_def_sec = (
+    os.getenv("KIWOOM_SECRETKEY")
+    or os.getenv("KIWOOM_API_SECRET")
+    or os.getenv("kiwoom_secretkey")
+)
+# PyPI kiwoom-rest-api는 모듈 로드 시 KIWOOM_API_KEY/SECRET만 읽으므로 반드시 설정
+if _def_app:
+    os.environ["KIWOOM_API_KEY"] = _def_app
+    os.environ.setdefault("KIWOOM_APPKEY", _def_app)
     os.environ.setdefault("kiwoom_appkey", _def_app)
-if _def_sec is not None:
+if _def_sec:
+    os.environ["KIWOOM_API_SECRET"] = _def_sec
+    os.environ.setdefault("KIWOOM_SECRETKEY", _def_sec)
     os.environ.setdefault("kiwoom_secretkey", _def_sec)
 
 # 1) PyPI kiwoom-rest-api (Railway 등에서 동작)
