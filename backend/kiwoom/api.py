@@ -5,8 +5,11 @@
 환경변수 KIWOOM_APPKEY, KIWOOM_SECRETKEY 사용. 미설정/미설치 시 모의 데이터.
 """
 import os
+import logging
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 _def_app = os.getenv("KIWOOM_APPKEY")
 _def_sec = os.getenv("KIWOOM_SECRETKEY")
@@ -116,6 +119,19 @@ def _safe_float(v: Any, default: float = 0.0) -> float:
         return default
 
 
+def _kt00004_body(res: Dict) -> Dict:
+    """kt00004 응답에서 본문 추출 (최상위 또는 output/data 래핑 대응)"""
+    if not isinstance(res, dict):
+        return {}
+    if res.get("entr") is not None or res.get("stk_acnt_evlt_prst") is not None:
+        return res
+    for key in ("output", "data", "result"):
+        inner = res.get(key)
+        if isinstance(inner, dict):
+            return inner
+    return res
+
+
 class KiwoomAPI:
     """키움증권 REST API 래퍼 (기존 시그니처 유지)"""
 
@@ -215,14 +231,23 @@ class KiwoomAPI:
                 res = self._account_api.account_evaluation_status_request_kt00004(
                     qry_tp="0", dmst_stex_tp="KRX"
                 )
-                if not isinstance(res, dict) or res.get("return_code", -1) != 0:
+                if not isinstance(res, dict):
+                    logger.warning("get_account_info: res is not dict, keys=%s", type(res))
                     return self._get_mock_account_info()
-                entr = _safe_int(res.get("entr"), 0)
-                aset = _safe_int(res.get("aset_evlt_amt"), 0)
-                tot_est = _safe_int(res.get("tot_est_amt"), 0)
+                return_code = _safe_int(res.get("return_code"), -1)
+                body = _kt00004_body(res)
+                if return_code != 0:
+                    logger.warning(
+                        "get_account_info: return_code=%s return_msg=%s res_keys=%s",
+                        return_code, res.get("return_msg"), list(res.keys()),
+                    )
+                    return self._get_mock_account_info()
+                entr = _safe_int(body.get("entr"), 0)
+                aset = _safe_int(body.get("aset_evlt_amt"), 0)
+                tot_est = _safe_int(body.get("tot_est_amt"), 0)
                 total_eval = aset or tot_est
-                total_profit = _safe_int(res.get("lspft"), 0)
-                profit_pct = _safe_float(res.get("lspft_rt"), 0.0)
+                total_profit = _safe_int(body.get("lspft"), 0)
+                profit_pct = _safe_float(body.get("lspft_rt"), 0.0)
                 acc_no = self.account_no
                 if len(acc_no) >= 4 and not acc_no.startswith("*"):
                     acc_no = f"********{acc_no[-4:]}"
@@ -234,6 +259,7 @@ class KiwoomAPI:
                     profit_percent=profit_pct,
                 )
             except Exception as e:
+                logger.warning("get_account_info exception: %s", e, exc_info=True)
                 print(f"[ERR] 계좌 정보 조회 실패: {e}")
             return self._get_mock_account_info()
         if self._api == "pypi":
@@ -303,9 +329,10 @@ class KiwoomAPI:
                 res = self._account_api.account_evaluation_status_request_kt00004(
                     qry_tp="0", dmst_stex_tp="KRX"
                 )
-                if not isinstance(res, dict) or res.get("return_code", -1) != 0:
+                if not isinstance(res, dict) or _safe_int(res.get("return_code"), -1) != 0:
                     return self._get_mock_holdings()
-                rows = res.get("stk_acnt_evlt_prst") or []
+                body = _kt00004_body(res)
+                rows = body.get("stk_acnt_evlt_prst") or res.get("stk_acnt_evlt_prst") or []
                 if isinstance(rows, dict):
                     rows = [rows]
                 if not isinstance(rows, list):
