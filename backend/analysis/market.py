@@ -238,20 +238,36 @@ class MarketAnalyzer:
         tech_summary = get_market_technical_summary(technical_indicators)
         return indices, news, technical_indicators, tech_summary
 
+    def _get_holdings_names(self, user_holdings: List[str], tech_list: List) -> Dict[str, str]:
+        """보유 종목 코드 -> 종목명 맵. 기술지표에 있으면 사용, 없으면 API로 조회."""
+        code_to_name: Dict[str, str] = {}
+        for t in tech_list or []:
+            code_to_name[t.code] = t.name
+        for code in user_holdings or []:
+            if code in code_to_name:
+                continue
+            try:
+                info = get_stock_price(code)
+                code_to_name[code] = (info.get("name") or code) if info else code
+            except Exception as e:
+                print(f"[Warning] get_stock_price({code}) failed: {e}")
+                code_to_name[code] = code
+        return code_to_name
+
     def _collect_holdings_news(self, user_holdings: List[str]) -> Dict[str, List[str]]:
         """보유 종목별 뉴스 제목 수집 (종목코드 -> 제목 리스트)."""
         out: Dict[str, List[str]] = {}
         for code in user_holdings or []:
             try:
-                items = news_crawler.get_stock_news(code, limit=5)
+                items = news_crawler.get_stock_news(code, limit=10)
                 out[code] = [n.title for n in items]
             except Exception as e:
                 print(f"[Warning] get_stock_news({code}) failed: {e}")
                 out[code] = []
         return out
 
-    def generate_analysis(self, user_holdings: List[str] = None) -> MarketAnalysis:
-        """AI 시황 분석 생성"""
+    def generate_analysis(self, user_holdings: List[str] = None, holdings_names: Dict[str, str] = None) -> MarketAnalysis:
+        """AI 시황 분석 생성. holdings_names 있으면 그대로 사용(포트폴리오에서 넘긴 종목명), 없으면 API로 조회."""
         print(f"[Debug] generate_analysis called, client={self.client is not None}")
         
         # 데이터 수집 (예외 시에도 빈 값으로 진행)
@@ -259,6 +275,9 @@ class MarketAnalyzer:
         indices, news, technical_indicators, tech_summary = self._collect_market_data(user_holdings)
         holdings_technical = technical_indicators if user_holdings else []
         holdings_news = self._collect_holdings_news(user_holdings) if user_holdings else {}
+        if not holdings_names and user_holdings:
+            holdings_names = self._get_holdings_names(user_holdings, holdings_technical)
+        holdings_names = holdings_names or {}
         
         # GPT 클라이언트가 없으면 모의 분석 반환
         if not self.client:
@@ -269,7 +288,8 @@ class MarketAnalyzer:
             # 프롬프트 구성
             prompt = self._build_analysis_prompt(
                 indices, news, technical_indicators, user_holdings,
-                holdings_technical=holdings_technical, holdings_news=holdings_news
+                holdings_technical=holdings_technical, holdings_news=holdings_news,
+                holdings_names=holdings_names
             )
             
             print("[Info] Calling OpenAI API...")
@@ -359,11 +379,13 @@ class MarketAnalyzer:
         technical_indicators: List[TechnicalIndicators],
         user_holdings: List[str] = None,
         holdings_technical: List[TechnicalIndicators] = None,
-        holdings_news: Dict[str, List[str]] = None
+        holdings_news: Dict[str, List[str]] = None,
+        holdings_names: Dict[str, str] = None
     ) -> str:
         """분석 프롬프트 생성"""
         holdings_technical = holdings_technical or []
         holdings_news = holdings_news or {}
+        holdings_names = holdings_names or {}
         
         # 지수 정보
         indices_text = "\n".join([
@@ -387,26 +409,27 @@ class MarketAnalyzer:
         # 기술적 지표
         tech_text = format_technical_for_prompt(technical_indicators)
         
-        # 보유 종목 정보 (종목별 기술지표 + 뉴스)
+        # 보유 종목 정보 (종목별 이름·기술지표·뉴스)
         holdings_text = ""
         holdings_instruction = ""
         if user_holdings:
             tech_by_code = {t.code: t for t in holdings_technical}
-            lines = ["\n\n## 사용자 보유 종목 (기술지표·뉴스)"]
+            lines = ["\n\n## 사용자 보유 종목 (종목명·기술지표·뉴스)"]
             for code in user_holdings:
+                name = holdings_names.get(code, code)
                 t = tech_by_code.get(code)
                 if t:
-                    lines.append(f"- {t.name}({code}): RSI {t.rsi}({t.rsi_status}), 추세 {t.trend}, 볼린저 {t.bb_status}, 이평선 {t.ma_status}")
+                    lines.append(f"- {name}({code}): RSI {t.rsi}({t.rsi_status}), 추세 {t.trend}, 볼린저 {t.bb_status}, 이평선 {t.ma_status}")
                 else:
-                    lines.append(f"- ({code}): 기술지표 없음")
-                titles = holdings_news.get(code, [])[:5]
+                    lines.append(f"- {name}({code}): 기술지표 없음")
+                titles = holdings_news.get(code, [])[:10]
                 for title in titles:
                     lines.append(f"  뉴스: {title}")
             holdings_text = "\n".join(lines)
             holdings_instruction = (
-                " 보유 종목이 제공된 경우, 각 종목에 대해 "
-                "**전망**(지수·기술적 분석·뉴스·시황·해당 종목 시계열 추세를 종합)과 "
-                "**전략**(매수/매도/관망 등 구체적 대응)을 반드시 제시하세요. 위 데이터만을 근거로, 시계열 추세(이동평균·추세)를 반영하세요."
+                " 보유 종목이 제공된 경우, 응답의 보유 종목 섹션에서 반드시 **종목명(코드)** 형식으로 표기하고, "
+                "각 종목별로 **전망**(지수·기술적 분석·위 뉴스·시황·시계열 추세를 종합하여 2~3문장 이상 상세히)과 "
+                "**전략**(매수/매도/관망·목표가·손절 등 2~3문장 이상 구체적 대응)을 제시하세요. 위에 제공된 뉴스와 시황을 적극 활용하세요."
             )
         
         prompt = f"""다음 시장 데이터를 분석하여 전문 애널리스트 수준의 시황 리포트를 작성해주세요.
@@ -465,7 +488,7 @@ class MarketAnalyzer:
     
     "commodities_analysis": "금, 은, 구리, 비트코인 현황과 시장적 의견 (2-3문장)",
     
-    "holdings_strategy": "보유 종목별 전망(지수·기술·뉴스·시황·시계열 추세 종합)과 전략(매수/매도/관망 등 구체적 대응). 없으면 비어두기",
+    "holdings_strategy": "보유 종목별로 반드시 종목명(코드)로 표기. 각 종목당 전망 2~3문장(지수·기술·뉴스·시황·시계열 추세 종합), 전략 2~3문장(매수/매도/관망·목표가·손절 등). 없으면 비어두기",
     
     "recommendation": "종합 투자 전략 (현재 시장 상황에서 어떻게 대응해야 하는지 2-3문장)"
 }}
@@ -474,8 +497,8 @@ class MarketAnalyzer:
 
         return prompt
     
-    def generate_analysis_stream(self, user_holdings: List[str] = None) -> Generator[str, None, None]:
-        """AI 시황 분석 스트리밍 생성"""
+    def generate_analysis_stream(self, user_holdings: List[str] = None, holdings_names: Dict[str, str] = None) -> Generator[str, None, None]:
+        """AI 시황 분석 스트리밍 생성. holdings_names 있으면 그대로 사용(포트폴리오에서 넘긴 종목명)."""
         print(f"[Debug] generate_analysis_stream called, client={self.client is not None}")
         
         yield "data: [STATUS] 시장 데이터 수집 중...\n\n"
@@ -483,6 +506,9 @@ class MarketAnalyzer:
         indices, news, technical_indicators, tech_summary = self._collect_market_data(user_holdings)
         holdings_technical = technical_indicators if user_holdings else []
         holdings_news = self._collect_holdings_news(user_holdings) if user_holdings else {}
+        if not holdings_names and user_holdings:
+            holdings_names = self._get_holdings_names(user_holdings, holdings_technical)
+        holdings_names = holdings_names or {}
         
         # GPT 클라이언트가 없으면 에러
         if not self.client:
@@ -496,7 +522,8 @@ class MarketAnalyzer:
             # 스트리밍용 프롬프트 (텍스트 형식)
             prompt = self._build_streaming_prompt(
                 indices, news, technical_indicators, user_holdings,
-                holdings_technical=holdings_technical, holdings_news=holdings_news
+                holdings_technical=holdings_technical, holdings_news=holdings_news,
+                holdings_names=holdings_names
             )
             
             print("[Info] Calling OpenAI API with streaming...")
@@ -572,11 +599,13 @@ class MarketAnalyzer:
         technical_indicators: List[TechnicalIndicators],
         user_holdings: List[str] = None,
         holdings_technical: List[TechnicalIndicators] = None,
-        holdings_news: Dict[str, List[str]] = None
+        holdings_news: Dict[str, List[str]] = None,
+        holdings_names: Dict[str, str] = None
     ) -> str:
         """스트리밍용 프롬프트 생성"""
         holdings_technical = holdings_technical or []
         holdings_news = holdings_news or {}
+        holdings_names = holdings_names or {}
         
         # 지수 정보
         indices_text = "\n".join([
@@ -600,26 +629,27 @@ class MarketAnalyzer:
         # 기술적 지표
         tech_text = format_technical_for_prompt(technical_indicators)
         
-        # 보유 종목 정보 (종목별 기술지표 + 뉴스)
+        # 보유 종목 정보 (종목별 이름·기술지표·뉴스)
         holdings_text = ""
         holdings_instruction = ""
         if user_holdings:
             tech_by_code = {t.code: t for t in holdings_technical}
-            lines = ["\n\n## 사용자 보유 종목 (기술지표·뉴스)"]
+            lines = ["\n\n## 사용자 보유 종목 (종목명·기술지표·뉴스)"]
             for code in user_holdings:
+                name = holdings_names.get(code, code)
                 t = tech_by_code.get(code)
                 if t:
-                    lines.append(f"- {t.name}({code}): RSI {t.rsi}({t.rsi_status}), 추세 {t.trend}, 볼린저 {t.bb_status}, 이평선 {t.ma_status}")
+                    lines.append(f"- {name}({code}): RSI {t.rsi}({t.rsi_status}), 추세 {t.trend}, 볼린저 {t.bb_status}, 이평선 {t.ma_status}")
                 else:
-                    lines.append(f"- ({code}): 기술지표 없음")
-                titles = holdings_news.get(code, [])[:5]
+                    lines.append(f"- {name}({code}): 기술지표 없음")
+                titles = holdings_news.get(code, [])[:10]
                 for title in titles:
                     lines.append(f"  뉴스: {title}")
             holdings_text = "\n".join(lines)
             holdings_instruction = (
-                " 보유 종목이 제공된 경우, 각 종목에 대해 "
-                "**전망**(지수·기술적 분석·뉴스·시황·해당 종목 시계열 추세를 종합)과 "
-                "**전략**(매수/매도/관망 등)을 제시하세요. 위 데이터만을 근거로, 시계열 추세(이동평균·추세)를 반영하세요."
+                " 보유 종목이 제공된 경우, 각 종목에 대해 위 뉴스·시황·기술지표를 활용해 "
+                "**전망**(지수·기술·뉴스·시황·시계열 추세 종합, 2~3문장 이상 상세히)과 "
+                "**전략**(매수/매도/관망·목표가·손절 등 2~3문장 이상 구체적 대응)을 제시하세요."
             )
         
         prompt = f"""다음 시장 데이터를 분석하여 전문 애널리스트 수준의 시황 리포트를 작성해주세요.
@@ -698,7 +728,7 @@ class MarketAnalyzer:
             prompt += """
 
 ## 보유 종목 전망 및 전략
-(각 종목에 대해 전망: 지수·기술·뉴스·시황·시계열 추세 종합, 전략: 매수/매도/관망 등 구체적 대응 제시)"""
+반드시 위 제목으로 섹션을 작성할 것. 각 종목은 반드시 **종목명(코드)** 형식으로 표기 (예: 삼성전자(005930)). 위에 제공된 보유 종목별 뉴스·기술지표·지수·시황을 적극 활용하여, 종목당 전망 2~3문장(지수·기술·뉴스·시황·시계열 추세 종합), 전략 2~3문장(매수/매도/관망·목표가·손절 등 구체적 대응)으로 상세히 서술할 것."""
         prompt += "\n\n"
         return prompt
 

@@ -147,11 +147,13 @@ export default function Analysis() {
     setAnalysisLoading(true)
     setAnalysisError('')
     try {
-      let holdings: string[] = []
+      let holdings: { code: string; name: string }[] = []
       try {
-        const stocksRes = await axios.get<{ code: string }[]>('/api/portfolio/stocks')
+        const stocksRes = await axios.get<{ code: string; name?: string }[]>('/api/portfolio/stocks')
         if (Array.isArray(stocksRes.data)) {
-          holdings = stocksRes.data.map((s) => s.code).filter(Boolean)
+          holdings = stocksRes.data
+            .filter((s) => s?.code)
+            .map((s) => ({ code: s.code, name: s.name ?? s.code }))
         }
       } catch {
         // 보유 종목 없으면 빈 배열로 진행
@@ -160,9 +162,15 @@ export default function Analysis() {
       setAnalysis(response.data)
     } catch (error: unknown) {
       console.error('분석 생성 실패:', error)
-      const msg = axios.isAxiosError(error) && error.response?.data?.detail
-        ? String(error.response.data.detail)
-        : error instanceof Error ? error.message : '분석 생성에 실패했습니다.'
+      let msg = '분석 생성에 실패했습니다.'
+      if (axios.isAxiosError(error) && error.response?.data?.detail !== undefined) {
+        const d = error.response.data.detail
+        msg = Array.isArray(d)
+          ? d.map((x: { msg?: string }) => x?.msg || JSON.stringify(x)).join(' ')
+          : String(d)
+      } else if (error instanceof Error) {
+        msg = error.message
+      }
       setAnalysisError(msg)
     } finally {
       setAnalysisLoading(false)
@@ -182,7 +190,7 @@ export default function Analysis() {
       { pattern: /###?\s*나스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'nasdaqAnalysis' },
       { pattern: /##\s*기술적 지표[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'technicalAnalysis' },
       { pattern: /##\s*원자재 및 비트코인[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'commoditiesAnalysis' },
-      { pattern: /##\s*보유 종목별 대응 전략[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'holdingsStrategy' },
+      { pattern: /##\s*보유 종목[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'holdingsStrategy' },
       { pattern: /###?\s*1\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme1', isTheme: 1 },
       { pattern: /###?\s*2\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme2', isTheme: 2 },
       { pattern: /###?\s*3\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme3', isTheme: 3 },
@@ -223,20 +231,23 @@ export default function Analysis() {
     setAnalysis(null)
     
     try {
-      let holdingsParam = ''
+      let holdings: { code: string; name: string }[] = []
       try {
-        const stocksRes = await axios.get<{ code: string }[]>('/api/portfolio/stocks')
-        if (Array.isArray(stocksRes.data) && stocksRes.data.length > 0) {
-          const codes = stocksRes.data.map((s) => s.code).filter(Boolean)
-          if (codes.length > 0) {
-            holdingsParam = '?holdings=' + encodeURIComponent(codes.join(','))
-          }
+        const stocksRes = await axios.get<{ code: string; name?: string }[]>('/api/portfolio/stocks')
+        if (Array.isArray(stocksRes.data)) {
+          holdings = stocksRes.data
+            .filter((s) => s?.code)
+            .map((s) => ({ code: s.code, name: s.name ?? s.code }))
         }
       } catch {
-        // 보유 종목 없으면 쿼리 없이 진행
+        // 보유 종목 없으면 빈 배열로 진행
       }
       const apiUrl = import.meta.env.VITE_API_URL || ''
-      console.log('[Stream] Fetching streaming API')
+      // GET + code:name 쿼리 사용 (POST 시 405 나는 환경 회피)
+      const holdingsParam = holdings.length
+        ? '?holdings=' + encodeURIComponent(holdings.map((h) => `${h.code}:${h.name}`).join(','))
+        : ''
+      console.log('[Stream] Fetching streaming API, holdings:', holdings.length)
       const response = await fetch(`${apiUrl}/api/analysis/generate/stream${holdingsParam}`)
       console.log('[Stream] Response status:', response.status, response.ok)
       
@@ -507,12 +518,12 @@ export default function Analysis() {
             </div>
           )}
 
-          {/* 보유 종목별 대응 전략 */}
+          {/* 보유 종목 전망 및 전략 */}
           {streamingSections.holdingsStrategy && (
             <div className="card border-l-4 border-l-indigo-400">
               <div className="flex items-center gap-2 mb-3">
                 <ClipboardList className="w-5 h-5 text-indigo-600" />
-                <h4 className="font-semibold text-indigo-700">보유 종목별 대응 전략</h4>
+                <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
               </div>
               <p className="text-sm text-gray-600 whitespace-pre-line">
                 {streamingSections.holdingsStrategy}
@@ -664,12 +675,12 @@ export default function Analysis() {
             </div>
           )}
 
-          {/* 보유 종목별 대응 전략 */}
+          {/* 보유 종목 전망 및 전략 */}
           {analysis.holdingsStrategy && (
             <div className="card border-l-4 border-l-indigo-400">
               <div className="flex items-center gap-2 mb-3">
                 <ClipboardList className="w-5 h-5 text-indigo-600" />
-                <h4 className="font-semibold text-indigo-700">보유 종목별 대응 전략</h4>
+                <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
               </div>
               <p className="text-sm text-gray-600 whitespace-pre-line">{analysis.holdingsStrategy}</p>
             </div>
