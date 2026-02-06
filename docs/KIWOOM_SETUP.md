@@ -43,7 +43,15 @@ KIWOOM_ACCOUNT_NO=64969257-10
 
 ---
 
-## 4. 참고
+## 4. 오류 대응
+
+| 로그/메시지 | 의미 | 조치 |
+|-------------|------|------|
+| **8005 / Token이 유효하지 않습니다** | 인증 토큰 만료 또는 앱키/시크릿 오류 | Railway(또는 배포 환경)에서 `KIWOOM_APPKEY`, `KIWOOM_SECRETKEY` 값 재확인. 공백·줄바꿈 없이 붙여넣기. 재연결 후 한 번 자동 재시도함. |
+
+---
+
+## 5. 참고
 
 - 키움 REST API·앱키 발급: 키움증권 개발자센터 또는 [키움증권 공식 안내](https://www.kiwoom.com) 참고.
 - Python 클라이언트: [Lay4U/KiwoomRestApi](https://github.com/Lay4U/KiwoomRestApi).
@@ -53,3 +61,4 @@ KIWOOM_ACCOUNT_NO=64969257-10
 | 키움 연결/계좌/보유종목 | `backend/kiwoom/api.py` |
 | API 라우트 (connect, account, stocks, summary) | `backend/api/routes/portfolio.py` |
 | 환경 변수 예시 | `backend/.env.example` |
+| 진단용 (실제/모의 구분) | `GET /api/portfolio/kiwoom-test` |

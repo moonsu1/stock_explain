@@ -237,11 +237,22 @@ class KiwoomAPI:
                 return_code = _safe_int(res.get("return_code"), -1)
                 body = _kt00004_body(res)
                 if return_code != 0:
-                    logger.warning(
-                        "get_account_info: return_code=%s return_msg=%s res_keys=%s",
-                        return_code, res.get("return_msg"), list(res.keys()),
-                    )
-                    return self._get_mock_account_info()
+                    # 8005 = Token invalid. Reconnect once and retry.
+                    if return_code == 3 and "8005" in str(res.get("return_msg", "")):
+                        logger.warning("get_account_info: token invalid (8005), reconnecting and retrying once")
+                        self.connect()
+                        res = self._account_api.account_evaluation_status_request_kt00004(
+                            qry_tp="0", dmst_stex_tp="KRX"
+                        )
+                        if isinstance(res, dict) and _safe_int(res.get("return_code"), -1) == 0:
+                            body = _kt00004_body(res)
+                            return_code = 0
+                    if return_code != 0:
+                        logger.warning(
+                            "get_account_info: return_code=%s return_msg=%s res_keys=%s",
+                            return_code, res.get("return_msg"), list(res.keys()),
+                        )
+                        return self._get_mock_account_info()
                 entr = _safe_int(body.get("entr"), 0)
                 aset = _safe_int(body.get("aset_evlt_amt"), 0)
                 tot_est = _safe_int(body.get("tot_est_amt"), 0)
@@ -329,8 +340,20 @@ class KiwoomAPI:
                 res = self._account_api.account_evaluation_status_request_kt00004(
                     qry_tp="0", dmst_stex_tp="KRX"
                 )
-                if not isinstance(res, dict) or _safe_int(res.get("return_code"), -1) != 0:
+                if not isinstance(res, dict):
                     return self._get_mock_holdings()
+                return_code = _safe_int(res.get("return_code"), -1)
+                if return_code != 0:
+                    if return_code == 3 and "8005" in str(res.get("return_msg", "")):
+                        logger.warning("get_holdings: token invalid (8005), reconnecting and retrying once")
+                        self.connect()
+                        res = self._account_api.account_evaluation_status_request_kt00004(
+                            qry_tp="0", dmst_stex_tp="KRX"
+                        )
+                        if isinstance(res, dict):
+                            return_code = _safe_int(res.get("return_code"), -1)
+                    if return_code != 0:
+                        return self._get_mock_holdings()
                 body = _kt00004_body(res)
                 rows = body.get("stk_acnt_evlt_prst") or res.get("stk_acnt_evlt_prst") or []
                 if isinstance(rows, dict):
