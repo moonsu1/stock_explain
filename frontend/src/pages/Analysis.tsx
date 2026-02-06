@@ -43,6 +43,8 @@ interface MarketAnalysis {
   actionItems: string[]
   recommendation: string
   generatedAt: string
+  commoditiesAnalysis?: string
+  holdingsStrategy?: string
 }
 
 // 시장 심리 색상
@@ -620,6 +622,28 @@ export default function Analysis() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 원자재 및 비트코인 */}
+          {analysis.commoditiesAnalysis && (
+            <div className="card bg-amber-50 border-amber-100">
+              <div className="flex items-center gap-2 mb-3">
+                <Coins className="w-5 h-5 text-amber-600" />
+                <h3 className="font-semibold text-amber-900">원자재 및 비트코인</h3>
+              </div>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line">{analysis.commoditiesAnalysis}</p>
+            </div>
+          )}
+
+          {/* 보유 종목별 대응 전략 */}
+          {analysis.holdingsStrategy && (
+            <div className="card border-l-4 border-l-indigo-400">
+              <div className="flex items-center gap-2 mb-3">
+                <ClipboardList className="w-5 h-5 text-indigo-600" />
+                <h4 className="font-semibold text-indigo-700">보유 종목별 대응 전략</h4>
+              </div>
+              <p className="text-sm text-gray-600 whitespace-pre-line">{analysis.holdingsStrategy}</p>
             </div>
           )}
 

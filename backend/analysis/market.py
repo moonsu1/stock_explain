@@ -130,6 +130,10 @@ class MarketAnalysis:
     
     generated_at: str
     
+    # 원자재·비트코인 / 보유종목 전략 (선택)
+    commodities_analysis: str = ""
+    holdings_strategy: str = ""
+    
     def to_dict(self) -> Dict:
         return {
             "summary": self.summary,
@@ -139,6 +143,8 @@ class MarketAnalysis:
             "nasdaqAnalysis": self.nasdaq_analysis,
             "technicalSummary": self.technical_summary.to_dict(),
             "marketSentiment": self.market_sentiment,
+            "commoditiesAnalysis": self.commodities_analysis,
+            "holdingsStrategy": self.holdings_strategy,
             "hotThemes": [t.to_dict() for t in self.hot_themes],
             "riskFactors": self.risk_factors,
             "actionItems": self.action_items,
@@ -403,6 +409,10 @@ class MarketAnalyzer:
         "구체적인 투자 액션 3"
     ],
     
+    "commodities_analysis": "금, 은, 구리, 비트코인 현황과 시장적 의견 (2-3문장)",
+    
+    "holdings_strategy": "보유 종목이 제공된 경우 종목별 매수/매도/관망 대응 전략, 없으면 비어두기",
+    
     "recommendation": "종합 투자 전략 (현재 시장 상황에서 어떻게 대응해야 하는지 2-3문장)"
 }}
 
@@ -660,7 +670,9 @@ class MarketAnalyzer:
             risk_factors=data.get("risk_factors", []),
             action_items=data.get("action_items", []),
             recommendation=data.get("recommendation", ""),
-            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            commodities_analysis=data.get("commodities_analysis", ""),
+            holdings_strategy=data.get("holdings_strategy", "")
         )
     
     def _generate_mock_analysis(
@@ -725,7 +737,9 @@ class MarketAnalyzer:
                 "리스크 관리를 위한 손절가 설정"
             ],
             recommendation="시장 변동성이 높은 상황에서 분할 매수/매도 전략을 권장합니다.",
-            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            commodities_analysis="금·은·구리·비트코인 등 원자재는 글로벌 경기와 달러 강세에 따라 변동합니다. 현재 데이터 기준으로 단기 추세를 참고하세요.",
+            holdings_strategy="보유 종목이 있으면 RSI와 추세에 따라 매수/매도/관망을 구분해 대응하세요." if user_holdings else ""
         )
 
 
