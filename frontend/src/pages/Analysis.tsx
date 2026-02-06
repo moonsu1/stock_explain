@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { 
   RefreshCw, Newspaper, TrendingUp, TrendingDown, Sparkles, 
   Activity, Target, AlertTriangle, CheckCircle, Flame,
-  BarChart3, ArrowUpCircle, ArrowDownCircle, Zap
+  BarChart3, ArrowUpCircle, ArrowDownCircle, Zap, Coins, ClipboardList
 } from 'lucide-react'
 import axios from 'axios'
 
@@ -71,6 +71,8 @@ interface StreamingSections {
   kosdaqAnalysis: string
   nasdaqAnalysis: string
   technicalAnalysis: string
+  commoditiesAnalysis: string
+  holdingsStrategy: string
   theme1: { name: string; content: string }
   theme2: { name: string; content: string }
   theme3: { name: string; content: string }
@@ -85,6 +87,8 @@ const initialSections: StreamingSections = {
   kosdaqAnalysis: '',
   nasdaqAnalysis: '',
   technicalAnalysis: '',
+  commoditiesAnalysis: '',
+  holdingsStrategy: '',
   theme1: { name: '', content: '' },
   theme2: { name: '', content: '' },
   theme3: { name: '', content: '' },
@@ -167,6 +171,8 @@ export default function Analysis() {
       { pattern: /###?\s*코스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'kosdaqAnalysis' },
       { pattern: /###?\s*나스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'nasdaqAnalysis' },
       { pattern: /##\s*기술적 지표[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'technicalAnalysis' },
+      { pattern: /##\s*원자재 및 비트코인[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'commoditiesAnalysis' },
+      { pattern: /##\s*보유 종목별 대응 전략[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'holdingsStrategy' },
       { pattern: /###?\s*1\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme1', isTheme: 1 },
       { pattern: /###?\s*2\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme2', isTheme: 2 },
       { pattern: /###?\s*3\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme3', isTheme: 3 },
@@ -387,6 +393,20 @@ export default function Analysis() {
             </div>
           )}
 
+          {/* 원자재 및 비트코인 */}
+          {streamingSections.commoditiesAnalysis && (
+            <div className="card bg-amber-50 border-amber-100">
+              <div className="flex items-center gap-2 mb-3">
+                <Coins className="w-5 h-5 text-amber-600" />
+                <h3 className="font-semibold text-amber-900">원자재 및 비트코인</h3>
+              </div>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                {streamingSections.commoditiesAnalysis}
+                {isStreaming && currentSection.includes('원자재') && <span className="animate-pulse">|</span>}
+              </p>
+            </div>
+          )}
+
           {/* 지수별 분석 */}
           {(streamingSections.kospiAnalysis || streamingSections.kosdaqAnalysis || streamingSections.nasdaqAnalysis) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -454,6 +474,20 @@ export default function Analysis() {
                   )
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 보유 종목별 대응 전략 */}
+          {streamingSections.holdingsStrategy && (
+            <div className="card border-l-4 border-l-indigo-400">
+              <div className="flex items-center gap-2 mb-3">
+                <ClipboardList className="w-5 h-5 text-indigo-600" />
+                <h4 className="font-semibold text-indigo-700">보유 종목별 대응 전략</h4>
+              </div>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {streamingSections.holdingsStrategy}
+                {isStreaming && currentSection.includes('보유 종목') && <span className="animate-pulse">|</span>}
+              </p>
             </div>
           )}
 
