@@ -4,12 +4,56 @@
 """
 import sys
 import os
+import logging
 
 # 부모 디렉토리를 path에 추가
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+# 진단용: 모의 데이터와 동일한지 판별 (test_kiwoom_portfolio.py와 동일 기준)
+MOCK_ACCOUNT_VALUES = {
+    "total_deposit": 5_000_000,
+    "total_evaluation": 15_250_000,
+    "total_profit": 1_250_000,
+    "profit_percent": 8.93,
+}
+MOCK_HOLDINGS_FIRST = {
+    "code": "233740",
+    "name": "KODEX 코스닥150레버리지",
+    "quantity": 100,
+    "avg_price": 8500,
+    "current_price": 17110,
+    "profit": 861000,
+    "profit_percent": 101.29,
+}
+
+
+def _is_mock_account(account) -> bool:
+    if not account:
+        return True
+    return (
+        getattr(account, "total_deposit", None) == MOCK_ACCOUNT_VALUES["total_deposit"]
+        and getattr(account, "total_evaluation", None) == MOCK_ACCOUNT_VALUES["total_evaluation"]
+        and getattr(account, "total_profit", None) == MOCK_ACCOUNT_VALUES["total_profit"]
+        and getattr(account, "profit_percent", None) == MOCK_ACCOUNT_VALUES["profit_percent"]
+    )
+
+
+def _is_mock_holdings(holdings) -> bool:
+    if not holdings or len(holdings) < 3:
+        return True
+    h = holdings[0]
+    return (
+        getattr(h, "code", None) == MOCK_HOLDINGS_FIRST["code"]
+        and getattr(h, "quantity", None) == MOCK_HOLDINGS_FIRST["quantity"]
+        and getattr(h, "avg_price", None) == MOCK_HOLDINGS_FIRST["avg_price"]
+        and getattr(h, "current_price", None) == MOCK_HOLDINGS_FIRST["current_price"]
+        and getattr(h, "profit", None) == MOCK_HOLDINGS_FIRST["profit"]
+    )
 
 # 키움 API는 선택적 임포트
 try:
@@ -94,6 +138,59 @@ async def get_connection_status() -> Dict[str, Any]:
     return {"connected": False, "mock": True}
 
 
+@router.get("/kiwoom-test")
+async def kiwoom_test() -> Dict[str, Any]:
+    """
+    Railway/로컬에서 키움 연동이 실제로 되는지 진단.
+    GET https://<your-backend>/api/portfolio/kiwoom-test 로 호출하면
+    account_source / holdings_source 가 real 인지 mock 인지와 오류 원인을 반환.
+    """
+    result = {
+        "kiwoom_available": KIWOOM_AVAILABLE,
+        "connected": False,
+        "account_source": "mock",
+        "holdings_source": "mock",
+        "error_connect": None,
+        "error_account": None,
+        "error_holdings": None,
+        "message": "",
+    }
+    if not KIWOOM_AVAILABLE:
+        result["message"] = "키움 API 미사용 (패키지 또는 앱키/시크릿 미설정)"
+        return result
+    try:
+        ok = kiwoom_api.connect()
+        result["connected"] = ok
+        if not ok:
+            result["message"] = "connect() 실패"
+            return result
+    except Exception as e:
+        result["error_connect"] = str(e)
+        result["message"] = f"connect 예외: {e}"
+        logger.exception("kiwoom-test: connect failed")
+        return result
+    # 계좌
+    try:
+        account = kiwoom_api.get_account_info()
+        result["account_source"] = "mock" if _is_mock_account(account) else "real"
+    except Exception as e:
+        result["error_account"] = str(e)
+        logger.exception("kiwoom-test: get_account_info failed")
+    # 보유
+    try:
+        holdings = kiwoom_api.get_holdings()
+        result["holdings_source"] = "mock" if _is_mock_holdings(holdings) else "real"
+    except Exception as e:
+        result["error_holdings"] = str(e)
+        logger.exception("kiwoom-test: get_holdings failed")
+    if not result["message"]:
+        if result["account_source"] == "real" and result["holdings_source"] == "real":
+            result["message"] = "실제 계좌/보유 데이터 반환 중"
+        else:
+            result["message"] = "연결은 됐으나 계좌/보유는 모의 데이터 (API 응답 확인 필요)"
+    return result
+
+
 @router.get("/summary")
 async def get_portfolio_summary() -> Dict[str, Any]:
     """포트폴리오 요약 조회 (예외 시에도 모의 데이터 반환)"""
@@ -135,8 +232,8 @@ async def get_account_info() -> Dict[str, Any]:
                 "totalProfit": account.total_profit,
                 "profitPercent": account.profit_percent
             }
-        except:
-            pass
+        except Exception as e:
+            logger.warning("get_account_info failed, returning mock: %s", e, exc_info=True)
     
     return get_mock_account()
 
@@ -159,7 +256,7 @@ async def get_holdings() -> List[Dict[str, Any]]:
                 }
                 for h in holdings
             ]
-        except:
-            pass
+        except Exception as e:
+            logger.warning("get_holdings failed, returning mock: %s", e, exc_info=True)
     
     return get_mock_holdings()
