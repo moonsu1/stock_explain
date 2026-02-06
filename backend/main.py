@@ -54,10 +54,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정
+# CORS 설정 (allow_credentials=True 시 와일드카드 불가 → 도메인 명시)
+_cors_origins = ["http://localhost:3000", "http://localhost:5173"]
+_frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip()
+if _frontend_origin:
+    _cors_origins.extend([o.strip() for o in _frontend_origin.split(",") if o.strip()])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
