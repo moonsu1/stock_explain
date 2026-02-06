@@ -30,13 +30,18 @@ except ImportError:
         except ImportError:
             _KiwoomOpenAPI = None
 
-KIWOOM_AVAILABLE = (
-    _KiwoomOpenAPI is not None
-    and bool(os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey"))
-    and bool(os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey"))
-)
-if not KIWOOM_AVAILABLE and _KiwoomOpenAPI is None:
-    print("⚠️ kiwoom-openapi 미설치 또는 키 미설정. 모의 모드로 동작합니다.")
+_has_appkey = bool(os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey"))
+_has_secret = bool(os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey"))
+KIWOOM_AVAILABLE = _KiwoomOpenAPI is not None and _has_appkey and _has_secret
+
+def _kiwoom_unavailable_reason() -> str:
+    if _KiwoomOpenAPI is None:
+        return "kiwoom-openapi 패키지 임포트 실패 (설치 확인 필요)"
+    if not _has_appkey:
+        return "KIWOOM_APPKEY 환경변수 미설정"
+    if not _has_secret:
+        return "KIWOOM_SECRETKEY 환경변수 미설정"
+    return "알 수 없음"
 
 
 @dataclass
@@ -101,7 +106,8 @@ class KiwoomAPI:
     def connect(self) -> bool:
         """키움 REST API 로그인 (auth_login)"""
         if not KIWOOM_AVAILABLE or _KiwoomOpenAPI is None:
-            print("⚠️ 키움 API 사용 불가. 모의 데이터를 반환합니다.")
+            reason = _kiwoom_unavailable_reason()
+            print(f"⚠️ 키움 API 사용 불가. 모의 데이터를 반환합니다. (원인: {reason})")
             self.connected = True
             return True
 
