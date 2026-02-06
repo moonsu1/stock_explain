@@ -131,7 +131,7 @@ class KiwoomAPI:
         """키움 REST API 로그인"""
         if not KIWOOM_AVAILABLE:
             reason = _kiwoom_unavailable_reason()
-            print(f"⚠️ 키움 API 사용 불가. 모의 데이터를 반환합니다. (원인: {reason})")
+            print(f"[WARN] 키움 API 사용 불가. 모의 데이터를 반환합니다. (원인: {reason})")
             self.connected = True
             return True
 
@@ -158,10 +158,10 @@ class KiwoomAPI:
                 self._api = "pypi"
                 self.connected = True
                 self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "********1234")
-                print("✅ 키움증권 REST 연결 성공 (kiwoom-rest-api)")
+                print("[OK] 키움증권 REST 연결 성공 (kiwoom-rest-api)")
                 return True
             except Exception as e:
-                print(f"❌ 키움증권 연결 실패: {e}")
+                print(f"[ERR] 키움증권 연결 실패: {e}")
                 self.connected = False
                 return False
 
@@ -186,12 +186,12 @@ class KiwoomAPI:
                         pass
                 if not self.account_no:
                     self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "********1234")
-                print(f"✅ 키움증권 REST 연결 성공. 계좌: {self.account_no}")
+                print(f"[OK] 키움증권 REST 연결 성공. 계좌: {self.account_no}")
                 return True
             self.connected = False
             return False
         except Exception as e:
-            print(f"❌ 키움증권 연결 실패: {e}")
+            print(f"[ERR] 키움증권 연결 실패: {e}")
             self.connected = False
             return False
 
@@ -234,7 +234,7 @@ class KiwoomAPI:
                     profit_percent=profit_pct,
                 )
             except Exception as e:
-                print(f"❌ 계좌 정보 조회 실패: {e}")
+                print(f"[ERR] 계좌 정보 조회 실패: {e}")
             return self._get_mock_account_info()
         if self._api == "pypi":
             return self._get_mock_account_info()
@@ -253,7 +253,7 @@ class KiwoomAPI:
                 pl = get_profit(cano=cano, acnt_prdt_cd=acnt_prdt_cd) if get_profit else {}
                 return self._map_account_info(bal, dep, pl)
         except Exception as e:
-            print(f"❌ 계좌 정보 조회 실패: {e}")
+            print(f"[ERR] 계좌 정보 조회 실패: {e}")
         return self._get_mock_account_info()
 
     def _parse_account_no(self, account_no: str) -> tuple:
@@ -330,7 +330,7 @@ class KiwoomAPI:
                 if holdings:
                     return holdings
             except Exception as e:
-                print(f"❌ 보유 종목 조회 실패: {e}")
+                print(f"[ERR] 보유 종목 조회 실패: {e}")
             return self._get_mock_holdings()
         if self._api == "pypi":
             return self._get_mock_holdings()
@@ -360,7 +360,7 @@ class KiwoomAPI:
                 if holdings:
                     return holdings
         except Exception as e:
-            print(f"❌ 보유 종목 조회 실패: {e}")
+            print(f"[ERR] 보유 종목 조회 실패: {e}")
         return self._get_mock_holdings()
 
     def get_stock_info(self, code: str) -> Optional[StockInfo]:
@@ -385,7 +385,7 @@ class KiwoomAPI:
                 vol = _safe_int(data.get("acml_vol", data.get("거래량", data.get("volume", 0))))
                 return StockInfo(code=code, name=name or code, current_price=cur or 10000, change=chg, change_percent=chg_pct, volume=vol)
             except Exception as e:
-                print(f"❌ 종목 정보 조회 실패: {e}")
+                print(f"[ERR] 종목 정보 조회 실패: {e}")
             return self._get_mock_stock_info(code)
 
         try:
@@ -411,7 +411,7 @@ class KiwoomAPI:
             vol = _safe_int(data.get("acml_vol", data.get("거래량", data.get("volume", 0))))
             return StockInfo(code=code, name=name or code, current_price=cur or 10000, change=chg, change_percent=chg_pct, volume=vol)
         except Exception as e:
-            print(f"❌ 종목 정보 조회 실패: {e}")
+            print(f"[ERR] 종목 정보 조회 실패: {e}")
         return self._get_mock_stock_info(code)
 
     def get_index(self, index_code: str) -> Dict[str, Any]:
@@ -462,7 +462,7 @@ class KiwoomAPI:
                 return {"success": False, "message": result.get("message", "주문 실패"), "order_no": None}
             return {"success": True, "message": "주문 전송됨", "order_no": str(result)}
         except Exception as e:
-            print(f"❌ 주문 전송 실패: {e}")
+            print(f"[ERR] 주문 전송 실패: {e}")
             return {"success": False, "message": str(e), "order_no": None}
 
     def _get_mock_account_info(self) -> AccountInfo:
