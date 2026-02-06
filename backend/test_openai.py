@@ -11,8 +11,10 @@ with open('.env', 'r', encoding='utf-8') as f:
 
 print(f"Key from .env: {api_key[:30]}...")
 
+import httpx
 from openai import OpenAI
-client = OpenAI(api_key=api_key)
+# httpx 0.28+는 proxies 인자 미지원 → openai 내부 전달 시 에러 방지
+client = OpenAI(api_key=api_key, http_client=httpx.Client())
 
 print("Testing gpt-5-nano...")
 response = client.chat.completions.create(

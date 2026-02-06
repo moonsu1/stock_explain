@@ -13,11 +13,14 @@ import json
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-# OpenAI 임포트
+# OpenAI 임포트 (httpx 0.28+ proxies 호환용으로 http_client 직접 전달)
 try:
+    import httpx
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
+    httpx = None
+    OpenAI = None
     OPENAI_AVAILABLE = False
 
 # 스트리밍 타입
@@ -167,7 +170,7 @@ class MarketAnalyzer:
         
         if OPENAI_AVAILABLE and api_key and api_key.startswith("sk-"):
             try:
-                self.client = OpenAI(api_key=api_key)
+                self.client = OpenAI(api_key=api_key, http_client=httpx.Client())
                 print(f"[OK] OpenAI API connected (client={self.client is not None})")
             except Exception as e:
                 print(f"[Warning] OpenAI init failed: {e}")
