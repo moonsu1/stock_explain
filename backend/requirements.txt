@@ -4,10 +4,9 @@
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 
-# 키움증권 REST API (Lay4U/KiwoomRestApi - KIWOOM_APPKEY, KIWOOM_SECRETKEY)
-# pip install kiwoom-openapi 또는 아래 Git 설치
-# kiwoom-openapi  # PyPI 등록 시 사용
-git+https://github.com/Lay4U/KiwoomRestApi.git
+# 키움증권 REST API (PyPI - Railway 등에서 설치 가능)
+# 환경변수: KIWOOM_APPKEY, KIWOOM_SECRETKEY (우리) → 패키지는 KIWOOM_API_KEY, KIWOOM_API_SECRET 사용
+kiwoom-rest-api>=0.1.12
 
 # 데이터 처리
 pandas==2.1.4

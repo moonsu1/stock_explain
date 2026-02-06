@@ -1,42 +1,61 @@
 """
-키움증권 REST API 연동 모듈 (KiwoomRestApi / kiwoom-openapi)
+키움증권 REST API 연동 모듈
 
-환경변수 KIWOOM_APPKEY, KIWOOM_SECRETKEY만 설정하면 사용 가능.
-미설정 또는 라이브러리 미설치 시 모의 데이터로 동작.
+우선 PyPI kiwoom-rest-api 사용 (Railway 등에서 설치 가능).
+환경변수 KIWOOM_APPKEY, KIWOOM_SECRETKEY 사용. 미설정/미설치 시 모의 데이터.
 """
 import os
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 
-# 라이브러리가 kiwoom_appkey, kiwoom_secretkey를 읽으므로 우리 env를 매핑
 _def_app = os.getenv("KIWOOM_APPKEY")
 _def_sec = os.getenv("KIWOOM_SECRETKEY")
+# PyPI kiwoom-rest-api는 KIWOOM_API_KEY, KIWOOM_API_SECRET 사용
+if _def_app is not None:
+    os.environ.setdefault("KIWOOM_API_KEY", _def_app)
+if _def_sec is not None:
+    os.environ.setdefault("KIWOOM_API_SECRET", _def_sec)
 if _def_app is not None:
     os.environ.setdefault("kiwoom_appkey", _def_app)
 if _def_sec is not None:
     os.environ.setdefault("kiwoom_secretkey", _def_sec)
 
+# 1) PyPI kiwoom-rest-api (Railway 등에서 동작)
+_KiwoomRestAPI_TokenManager = None
+_KiwoomRestAPI_StockInfo = None
 try:
-    from kiwoom_openapi import KiwoomOpenAPI
-    _KiwoomOpenAPI = KiwoomOpenAPI
+    from kiwoom_rest_api.auth.token import TokenManager as _KiwoomRestAPI_TokenManager
+    from kiwoom_rest_api.koreanstock.stockinfo import StockInfo as _KiwoomRestAPI_StockInfo
 except ImportError:
+    pass
+
+# 2) Lay4U KiwoomRestApi (Git, 로컬)
+_KiwoomOpenAPI = None
+if _KiwoomRestAPI_TokenManager is None:
     try:
-        from kiwoom import KiwoomOpenAPI
+        from kiwoom_openapi import KiwoomOpenAPI
         _KiwoomOpenAPI = KiwoomOpenAPI
     except ImportError:
         try:
-            from kiwoom_api.kiwoom import KiwoomOpenAPI
+            from kiwoom import KiwoomOpenAPI
             _KiwoomOpenAPI = KiwoomOpenAPI
         except ImportError:
-            _KiwoomOpenAPI = None
+            try:
+                from kiwoom_api.kiwoom import KiwoomOpenAPI
+                _KiwoomOpenAPI = KiwoomOpenAPI
+            except ImportError:
+                pass
 
-_has_appkey = bool(os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey"))
-_has_secret = bool(os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey"))
-KIWOOM_AVAILABLE = _KiwoomOpenAPI is not None and _has_appkey and _has_secret
+_has_appkey = bool(os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey") or os.getenv("KIWOOM_API_KEY"))
+_has_secret = bool(os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey") or os.getenv("KIWOOM_API_SECRET"))
+_using_pypi = _KiwoomRestAPI_TokenManager is not None and _KiwoomRestAPI_StockInfo is not None
+_using_lay4u = _KiwoomOpenAPI is not None
+KIWOOM_AVAILABLE = (_using_pypi or _using_lay4u) and _has_appkey and _has_secret
+
 
 def _kiwoom_unavailable_reason() -> str:
-    if _KiwoomOpenAPI is None:
-        return "kiwoom-openapi 패키지 임포트 실패 (설치 확인 필요)"
+    if not _using_pypi and not _using_lay4u:
+        return "kiwoom-rest-api 패키지 임포트 실패 (pip install kiwoom-rest-api 확인)"
     if not _has_appkey:
         return "KIWOOM_APPKEY 환경변수 미설정"
     if not _has_secret:
@@ -100,22 +119,43 @@ class KiwoomAPI:
 
     def __init__(self):
         self._api: Optional[Any] = None
+        self._token_manager = None
+        self._stock_info_api = None
         self.connected = False
         self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "")
 
     def connect(self) -> bool:
-        """키움 REST API 로그인 (auth_login)"""
-        if not KIWOOM_AVAILABLE or _KiwoomOpenAPI is None:
+        """키움 REST API 로그인"""
+        if not KIWOOM_AVAILABLE:
             reason = _kiwoom_unavailable_reason()
             print(f"⚠️ 키움 API 사용 불가. 모의 데이터를 반환합니다. (원인: {reason})")
             self.connected = True
             return True
 
-        app = os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey")
-        sec = os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey")
+        app = os.getenv("KIWOOM_APPKEY") or os.getenv("kiwoom_appkey") or os.getenv("KIWOOM_API_KEY")
+        sec = os.getenv("KIWOOM_SECRETKEY") or os.getenv("kiwoom_secretkey") or os.getenv("KIWOOM_API_SECRET")
         if not app or not sec:
             self.connected = True
             return True
+
+        if _using_pypi:
+            try:
+                os.environ["KIWOOM_API_KEY"] = app
+                os.environ["KIWOOM_API_SECRET"] = sec
+                self._token_manager = _KiwoomRestAPI_TokenManager()
+                self._stock_info_api = _KiwoomRestAPI_StockInfo(
+                    base_url="https://api.kiwoom.com",
+                    token_manager=self._token_manager,
+                )
+                self._api = "pypi"
+                self.connected = True
+                self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "********1234")
+                print("✅ 키움증권 REST 연결 성공 (kiwoom-rest-api)")
+                return True
+            except Exception as e:
+                print(f"❌ 키움증권 연결 실패: {e}")
+                self.connected = False
+                return False
 
         try:
             os.environ["kiwoom_appkey"] = app
@@ -151,6 +191,8 @@ class KiwoomAPI:
         """연결 해제"""
         self.connected = False
         self._api = None
+        self._token_manager = None
+        self._stock_info_api = None
 
     def is_connected(self) -> bool:
         return self.connected
@@ -158,6 +200,8 @@ class KiwoomAPI:
     def get_account_info(self) -> AccountInfo:
         """계좌 정보 조회"""
         if not KIWOOM_AVAILABLE or not self._api:
+            return self._get_mock_account_info()
+        if self._api == "pypi":
             return self._get_mock_account_info()
 
         try:
@@ -219,6 +263,8 @@ class KiwoomAPI:
         """보유 종목 조회"""
         if not KIWOOM_AVAILABLE or not self._api:
             return self._get_mock_holdings()
+        if self._api == "pypi":
+            return self._get_mock_holdings()
 
         try:
             account_api = getattr(self._api, "account", None)
@@ -251,6 +297,26 @@ class KiwoomAPI:
     def get_stock_info(self, code: str) -> Optional[StockInfo]:
         """종목 정보 조회"""
         if not KIWOOM_AVAILABLE or not self._api:
+            return self._get_mock_stock_info(code)
+
+        if self._api == "pypi" and self._stock_info_api:
+            try:
+                res = self._stock_info_api.basic_stock_information_request_ka10001(code)
+                if not isinstance(res, dict):
+                    return self._get_mock_stock_info(code)
+                data = res.get("data") or res.get("output") or res
+                if isinstance(data, list) and data:
+                    data = data[0]
+                if not isinstance(data, dict):
+                    data = res
+                name = str(data.get("prdt_name", data.get("종목명", data.get("name", "알수없음")))).strip()
+                cur = _safe_int(data.get("stck_prpr", data.get("현재가", data.get("current_price", 0))))
+                chg = _safe_int(data.get("prdy_vrss", data.get("전일대비", data.get("change", 0))))
+                chg_pct = _safe_float(data.get("prdy_ctrt", data.get("등락율", data.get("change_percent", 0))))
+                vol = _safe_int(data.get("acml_vol", data.get("거래량", data.get("volume", 0))))
+                return StockInfo(code=code, name=name or code, current_price=cur or 10000, change=chg, change_percent=chg_pct, volume=vol)
+            except Exception as e:
+                print(f"❌ 종목 정보 조회 실패: {e}")
             return self._get_mock_stock_info(code)
 
         try:
@@ -293,6 +359,8 @@ class KiwoomAPI:
     ) -> Dict[str, Any]:
         """주문 전송. order_type 1=매수, 2=매도."""
         if not KIWOOM_AVAILABLE or not self._api:
+            return {"success": True, "message": "모의 주문 완료", "order_no": "MOCK12345"}
+        if self._api == "pypi":
             return {"success": True, "message": "모의 주문 완료", "order_no": "MOCK12345"}
 
         try:
