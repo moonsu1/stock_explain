@@ -138,6 +138,26 @@ async def get_connection_status() -> Dict[str, Any]:
     return {"connected": False, "mock": True}
 
 
+@router.get("/egress-ip")
+async def get_egress_ip() -> Dict[str, Any]:
+    """
+    이 서버(백엔드)가 외부로 요청할 때 쓰는 공인 IP를 반환.
+    키움 API IP 등록 시 Railway 등 배포 서버 IP를 넣어야 하면,
+    배포된 백엔드 URL로 GET /api/portfolio/egress-ip 호출해서 나온 ip를 등록하면 됨.
+    """
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get("https://api.ipify.org?format=json")
+            r.raise_for_status()
+            data = r.json()
+            ip = data.get("ip") or ""
+        return {"ip": ip, "message": "키움 개발자센터 IP 등록/현황에 이 IP를 추가하세요."}
+    except Exception as e:
+        logger.warning("egress-ip check failed: %s", e)
+        return {"ip": None, "error": str(e), "message": "IP 조회 실패. api.ipify.org 연결 확인."}
+
+
 @router.get("/kiwoom-test")
 async def kiwoom_test() -> Dict[str, Any]:
     """

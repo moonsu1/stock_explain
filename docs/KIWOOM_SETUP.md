@@ -43,7 +43,19 @@ KIWOOM_ACCOUNT_NO=64969257-10
 
 ---
 
-## 4. 오류 대응
+## 4. IP 등록 (배포 시 필수)
+
+키움 API는 **요청이 나가는 IP**를 화이트리스트로 등록해야 해요.  
+로컬에서는 “현재 나의 IP”만 등록하면 되지만, **Railway 등에 배포했으면 배포 서버가 나가는 IP**를 따로 등록해야 해요.
+
+- **등록할 IP 확인**: 배포된 백엔드에서  
+  **`GET https://<백엔드-URL>/api/portfolio/egress-ip`**  
+  호출하면 `ip` 값이 그 서버의 나가는(egress) IP예요. 그 IP를 키움 개발자센터 **IP 등록 및 현황**에 추가하면 됨.
+- Railway는 재시작 시 IP가 바뀔 수 있어서, 8005가 다시 나오면 egress-ip 다시 찍어서 바뀐 IP 추가하면 됨.
+
+---
+
+## 5. 오류 대응
 
 | 로그/메시지 | 의미 | 조치 |
 |-------------|------|------|
@@ -51,7 +63,7 @@ KIWOOM_ACCOUNT_NO=64969257-10
 
 ---
 
-## 5. 참고
+## 6. 참고
 
 - 키움 REST API·앱키 발급: 키움증권 개발자센터 또는 [키움증권 공식 안내](https://www.kiwoom.com) 참고.
 - Python 클라이언트: [Lay4U/KiwoomRestApi](https://github.com/Lay4U/KiwoomRestApi).
