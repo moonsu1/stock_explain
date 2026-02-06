@@ -25,7 +25,15 @@ from typing import Generator
 
 try:
     from .news import news_crawler, NewsItem
-    from .crawler import get_all_indices, get_stock_price, IndexData
+    from .crawler import (
+        get_all_indices,
+        get_stock_price,
+        IndexData,
+        get_gold_price,
+        get_silver_price,
+        get_copper_price,
+        get_btc_price,
+    )
     from .technical import (
         analyze_multiple_stocks, 
         format_technical_for_prompt,
@@ -34,7 +42,15 @@ try:
     )
 except ImportError:
     from news import news_crawler, NewsItem
-    from crawler import get_all_indices, get_stock_price, IndexData
+    from crawler import (
+        get_all_indices,
+        get_stock_price,
+        IndexData,
+        get_gold_price,
+        get_silver_price,
+        get_copper_price,
+        get_btc_price,
+    )
     from technical import (
         analyze_multiple_stocks, 
         format_technical_for_prompt,
@@ -171,6 +187,19 @@ class MarketAnalyzer:
         
         return indices
     
+    def get_commodities_and_btc(self) -> List[MarketIndex]:
+        """원자재(금, 은, 구리) 및 비트코인 시세 조회"""
+        out = []
+        for fn in (get_gold_price, get_silver_price, get_copper_price, get_btc_price):
+            idx = fn()
+            out.append(MarketIndex(
+                name=idx.name,
+                value=idx.value,
+                change=idx.change,
+                change_percent=idx.change_percent
+            ))
+        return out
+    
     def get_news(self, limit: int = 10) -> List[Dict]:
         """뉴스 목록 조회"""
         news = news_crawler.get_market_headlines()
@@ -297,6 +326,13 @@ class MarketAnalyzer:
             for idx in indices
         ])
         
+        # 원자재 및 비트코인
+        commodities_btc = self.get_commodities_and_btc()
+        commodities_text = "\n".join([
+            f"- {c.name}: ${c.value:,.2f} ({'+' if c.change >= 0 else ''}{c.change:,.2f}, {c.change_percent:+.2f}%)"
+            for c in commodities_btc
+        ])
+        
         # 뉴스 헤드라인
         news_text = "\n".join([
             f"- [{n.source}] {n.title}"
@@ -308,13 +344,19 @@ class MarketAnalyzer:
         
         # 보유 종목 정보
         holdings_text = ""
+        holdings_instruction = ""
         if user_holdings:
             holdings_text = f"\n\n## 사용자 보유 종목\n{', '.join(user_holdings)}"
+            holdings_instruction = " 보유 종목이 제공된 경우, 종목별로 매수/매도/관망 등 대응 전략을 반드시 제시하세요."
         
         prompt = f"""다음 시장 데이터를 분석하여 전문 애널리스트 수준의 시황 리포트를 작성해주세요.
 
-## 주요 지수 (실시간)
+## 주요 지수 (실시간, 당일 기준 전일 대비)
 {indices_text}
+(위 지수는 당일 기준 전일 대비 값입니다. 전일 대비 등락과 등락률을 바탕으로 최근 단기 추세(상승/하락/횡보)와 흐름을 해석해 주세요.)
+
+## 원자재 및 비트코인
+{commodities_text}
 
 ## 주요 뉴스 헤드라인
 {news_text}
@@ -322,7 +364,7 @@ class MarketAnalyzer:
 {tech_text}
 {holdings_text}
 
-위 데이터를 바탕으로 다음 JSON 형식으로 분석해주세요:
+위 데이터를 바탕으로 분석하되, 원자재 및 비트코인 현황과 시장적 의견을 반드시 포함하세요.{holdings_instruction} 다음 JSON 형식으로 분석해주세요.
 
 {{
     "summary": "오늘 시장 상황 종합 요약 (3-4문장, 핵심 이슈와 시장 분위기 포함)",
@@ -478,6 +520,13 @@ class MarketAnalyzer:
             for idx in indices
         ])
         
+        # 원자재 및 비트코인
+        commodities_btc = self.get_commodities_and_btc()
+        commodities_text = "\n".join([
+            f"- {c.name}: ${c.value:,.2f} ({'+' if c.change >= 0 else ''}{c.change:,.2f}, {c.change_percent:+.2f}%)"
+            for c in commodities_btc
+        ])
+        
         # 뉴스 헤드라인
         news_text = "\n".join([
             f"- [{n.source}] {n.title}"
@@ -489,8 +538,10 @@ class MarketAnalyzer:
         
         # 보유 종목 정보
         holdings_text = ""
+        holdings_instruction = ""
         if user_holdings:
             holdings_text = f"\n\n## 사용자 보유 종목\n{', '.join(user_holdings)}"
+            holdings_instruction = " 보유 종목이 제공된 경우 반드시 종목별 매수/매도/관망 등 대응 전략을 제시하세요."
         
         prompt = f"""다음 시장 데이터를 분석하여 전문 애널리스트 수준의 시황 리포트를 작성해주세요.
 
@@ -499,8 +550,12 @@ class MarketAnalyzer:
 - 뉴스: 네이버 금융 뉴스 섹션
 - 기술적 지표: 종목별 계산 값
 
-## 주요 지수 (실시간)
+## 주요 지수 (실시간, 당일 기준 전일 대비)
 {indices_text}
+(전일 대비 등락과 등락률을 바탕으로 최근 단기 추세와 흐름을 해석해 주세요.)
+
+## 원자재 및 비트코인
+{commodities_text}
 
 ## 주요 뉴스 헤드라인
 {news_text}
@@ -508,7 +563,7 @@ class MarketAnalyzer:
 {tech_text}
 {holdings_text}
 
-중요: 위에서 제공한 데이터만을 근거로 분석하세요. 주관적 추측보다 수치 기반 판단을 우선하세요.
+중요: 위에서 제공한 데이터만을 근거로 분석하세요. 원자재 및 비트코인 현황과 시장적 의견을 반드시 포함하세요.{holdings_instruction}
 
 다음 형식으로 분석해주세요:
 
@@ -519,15 +574,19 @@ class MarketAnalyzer:
 (공포/불안/중립/낙관/탐욕 중 하나 - RSI와 지수 등락률 기준으로 판단하고 그 근거 명시)
 
 ## 지수별 분석
+(각 지수에 대해 등락 원인과 함께 최근 단기 추세/흐름을 1~2문장 포함)
 
 ### 코스피
-(등락 원인, 외국인/기관 수급 추정, 주요 섹터 동향)
+(등락 원인, 단기 추세, 외국인/기관 수급 추정, 주요 섹터 동향)
 
 ### 코스닥  
-(등락 원인, 테마주 동향, 중소형주 흐름)
+(등락 원인, 단기 추세, 테마주 동향, 중소형주 흐름)
 
 ### 나스닥
-(기술주 동향, 국내 시장 영향도)
+(등락 원인, 단기 추세, 기술주 동향, 국내 시장 영향도)
+
+## 원자재 및 비트코인
+(금, 은, 구리, 비트코인 현황과 시장적 의견)
 
 ## 기술적 지표 해석
 (RSI, 볼린저밴드, 이동평균선 분석 및 시사점)
@@ -556,7 +615,12 @@ class MarketAnalyzer:
 
 ## 투자 전략 제안
 (현재 시장 상황에서 어떻게 대응해야 하는지 구체적 액션 포함)"""
+        if user_holdings:
+            prompt += """
 
+## 보유 종목별 대응 전략
+(제공된 보유 종목별로 매수/매도/관망 등 구체적 대응 전략을 제시)"""
+        prompt += "\n\n"
         return prompt
 
     def _parse_analysis_response(self, data: Dict, tech_summary: Dict) -> MarketAnalysis:

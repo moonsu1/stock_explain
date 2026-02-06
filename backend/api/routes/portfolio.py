@@ -96,25 +96,30 @@ async def get_connection_status() -> Dict[str, Any]:
 
 @router.get("/summary")
 async def get_portfolio_summary() -> Dict[str, Any]:
-    """포트폴리오 요약 조회"""
-    if KIWOOM_AVAILABLE:
-        try:
-            account = kiwoom_api.get_account_info()
-            return {
-                "totalValue": account.total_evaluation,
-                "totalProfit": account.total_profit,
-                "profitPercent": account.profit_percent
-            }
-        except:
-            pass
-    
-    # 모의 데이터
-    account = get_mock_account()
-    return {
-        "totalValue": account["totalEvaluation"],
-        "totalProfit": account["totalProfit"],
-        "profitPercent": account["profitPercent"]
-    }
+    """포트폴리오 요약 조회 (예외 시에도 모의 데이터 반환)"""
+    try:
+        if KIWOOM_AVAILABLE:
+            try:
+                account = kiwoom_api.get_account_info()
+                return {
+                    "totalValue": account.total_evaluation,
+                    "totalProfit": account.total_profit,
+                    "profitPercent": account.profit_percent
+                }
+            except Exception:
+                pass
+        account = get_mock_account()
+        return {
+            "totalValue": account["totalEvaluation"],
+            "totalProfit": account["totalProfit"],
+            "profitPercent": account["profitPercent"]
+        }
+    except Exception:
+        return {
+            "totalValue": 0,
+            "totalProfit": 0,
+            "profitPercent": 0.0
+        }
 
 
 @router.get("/account")

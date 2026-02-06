@@ -137,7 +137,16 @@ export default function Analysis() {
   const generateAnalysis = async () => {
     setAnalysisLoading(true)
     try {
-      const response = await axios.post('/api/analysis/generate')
+      let holdings: string[] = []
+      try {
+        const stocksRes = await axios.get<{ code: string }[]>('/api/portfolio/stocks')
+        if (Array.isArray(stocksRes.data)) {
+          holdings = stocksRes.data.map((s) => s.code).filter(Boolean)
+        }
+      } catch {
+        // 보유 종목 없으면 빈 배열로 진행
+      }
+      const response = await axios.post('/api/analysis/generate', { holdings })
       setAnalysis(response.data)
     } catch (error) {
       console.error('분석 생성 실패:', error)
@@ -197,9 +206,21 @@ export default function Analysis() {
     setAnalysis(null)
     
     try {
+      let holdingsParam = ''
+      try {
+        const stocksRes = await axios.get<{ code: string }[]>('/api/portfolio/stocks')
+        if (Array.isArray(stocksRes.data) && stocksRes.data.length > 0) {
+          const codes = stocksRes.data.map((s) => s.code).filter(Boolean)
+          if (codes.length > 0) {
+            holdingsParam = '?holdings=' + encodeURIComponent(codes.join(','))
+          }
+        }
+      } catch {
+        // 보유 종목 없으면 쿼리 없이 진행
+      }
       const apiUrl = import.meta.env.VITE_API_URL || ''
       console.log('[Stream] Fetching streaming API')
-      const response = await fetch(`${apiUrl}/api/analysis/generate/stream`)
+      const response = await fetch(`${apiUrl}/api/analysis/generate/stream${holdingsParam}`)
       console.log('[Stream] Response status:', response.status, response.ok)
       
       if (!response.ok) {

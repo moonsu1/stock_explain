@@ -279,6 +279,24 @@ def get_copper_price() -> IndexData:
     return get_commodity_price("CMDT_HG", "구리")
 
 
+def get_btc_price() -> IndexData:
+    """비트코인 시세 (CoinGecko 무료 API)"""
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true"
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        btc = data.get("bitcoin", {})
+        value = float(btc.get("usd", 0))
+        change_pct = float(btc.get("usd_24h_change") or 0)
+        change = value * (change_pct / 100) if value and change_pct else 0.0
+        if value > 0:
+            return IndexData(name="비트코인", value=value, change=change, change_percent=change_pct)
+    except Exception as e:
+        print(f"[Error] BTC price failed: {e}")
+    return IndexData("비트코인", 0.0, 0.0, 0.0)
+
+
 def get_commodities_and_world() -> List[IndexData]:
     """원자재 및 해외 지수 조회"""
     return [

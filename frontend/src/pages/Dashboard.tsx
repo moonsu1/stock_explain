@@ -16,7 +16,7 @@ const chartUrls: Record<string, string> = {
   '나스닥': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/NAS@IXIC.png',
   '니케이225': 'https://ssl.pstatic.net/imgfinance/chart/world/candle/day/JPX@NI225.png',
   '금': 'https://ssl.pstatic.net/imgfinance/chart/marketindex/CMDT_GC.png',
-  '은': 'https://ssl.pstatic.net/imgfinance/chart/marketindex/CMDT_SI.png',
+  '은': 'https://ssl.pstatic.net/imgfinance/chart/marketindex/area/month/CMDT_SI.png',
   '구리': 'https://ssl.pstatic.net/imgfinance/chart/marketindex/CMDT_HG.png',
 }
 
