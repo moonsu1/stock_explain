@@ -23,9 +23,11 @@ if _def_sec is not None:
 # 1) PyPI kiwoom-rest-api (Railway 등에서 동작)
 _KiwoomRestAPI_TokenManager = None
 _KiwoomRestAPI_StockInfo = None
+_KiwoomRestAPI_Account = None
 try:
     from kiwoom_rest_api.auth.token import TokenManager as _KiwoomRestAPI_TokenManager
     from kiwoom_rest_api.koreanstock.stockinfo import StockInfo as _KiwoomRestAPI_StockInfo
+    from kiwoom_rest_api.koreanstock.account import Account as _KiwoomRestAPI_Account
 except ImportError:
     pass
 
@@ -121,6 +123,7 @@ class KiwoomAPI:
         self._api: Optional[Any] = None
         self._token_manager = None
         self._stock_info_api = None
+        self._account_api = None
         self.connected = False
         self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "")
 
@@ -147,6 +150,11 @@ class KiwoomAPI:
                     base_url="https://api.kiwoom.com",
                     token_manager=self._token_manager,
                 )
+                if _KiwoomRestAPI_Account is not None:
+                    self._account_api = _KiwoomRestAPI_Account(
+                        base_url="https://api.kiwoom.com",
+                        token_manager=self._token_manager,
+                    )
                 self._api = "pypi"
                 self.connected = True
                 self.account_no = os.getenv("KIWOOM_ACCOUNT_NO", "********1234")
@@ -193,6 +201,7 @@ class KiwoomAPI:
         self._api = None
         self._token_manager = None
         self._stock_info_api = None
+        self._account_api = None
 
     def is_connected(self) -> bool:
         return self.connected
@@ -200,6 +209,32 @@ class KiwoomAPI:
     def get_account_info(self) -> AccountInfo:
         """계좌 정보 조회"""
         if not KIWOOM_AVAILABLE or not self._api:
+            return self._get_mock_account_info()
+        if self._api == "pypi" and self._account_api:
+            try:
+                res = self._account_api.account_evaluation_status_request_kt00004(
+                    qry_tp="0", dmst_stex_tp="KRX"
+                )
+                if not isinstance(res, dict) or res.get("return_code", -1) != 0:
+                    return self._get_mock_account_info()
+                entr = _safe_int(res.get("entr"), 0)
+                aset = _safe_int(res.get("aset_evlt_amt"), 0)
+                tot_est = _safe_int(res.get("tot_est_amt"), 0)
+                total_eval = aset or tot_est
+                total_profit = _safe_int(res.get("lspft"), 0)
+                profit_pct = _safe_float(res.get("lspft_rt"), 0.0)
+                acc_no = self.account_no
+                if len(acc_no) >= 4 and not acc_no.startswith("*"):
+                    acc_no = f"********{acc_no[-4:]}"
+                return AccountInfo(
+                    account_no=acc_no,
+                    total_deposit=entr,
+                    total_evaluation=total_eval or 1,
+                    total_profit=total_profit,
+                    profit_percent=profit_pct,
+                )
+            except Exception as e:
+                print(f"❌ 계좌 정보 조회 실패: {e}")
             return self._get_mock_account_info()
         if self._api == "pypi":
             return self._get_mock_account_info()
@@ -262,6 +297,40 @@ class KiwoomAPI:
     def get_holdings(self) -> List[HoldingStock]:
         """보유 종목 조회"""
         if not KIWOOM_AVAILABLE or not self._api:
+            return self._get_mock_holdings()
+        if self._api == "pypi" and self._account_api:
+            try:
+                res = self._account_api.account_evaluation_status_request_kt00004(
+                    qry_tp="0", dmst_stex_tp="KRX"
+                )
+                if not isinstance(res, dict) or res.get("return_code", -1) != 0:
+                    return self._get_mock_holdings()
+                rows = res.get("stk_acnt_evlt_prst") or []
+                if isinstance(rows, dict):
+                    rows = [rows]
+                if not isinstance(rows, list):
+                    return self._get_mock_holdings()
+                holdings = []
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    code = str(r.get("stk_cd", "")).strip()
+                    if not code:
+                        continue
+                    name = str(r.get("stk_nm", "")).strip() or code
+                    qty = _safe_int(r.get("rmnd_qty"), 0)
+                    avg = _safe_int(r.get("avg_prc"), 0)
+                    cur = _safe_int(r.get("cur_prc"), 0) or avg
+                    profit = _safe_int(r.get("pl_amt"), 0)
+                    pct = _safe_float(r.get("pl_rt"), 0.0)
+                    holdings.append(HoldingStock(
+                        code=code, name=name, quantity=qty, avg_price=avg,
+                        current_price=cur, profit=profit, profit_percent=pct,
+                    ))
+                if holdings:
+                    return holdings
+            except Exception as e:
+                print(f"❌ 보유 종목 조회 실패: {e}")
             return self._get_mock_holdings()
         if self._api == "pypi":
             return self._get_mock_holdings()
