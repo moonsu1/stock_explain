@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart2, X, CheckCircle } from 'lucide-react'
 import axios from 'axios'
+import { getSavedPortfolio } from '../utils/portfolioStorage'
 
 interface IndexData {
   name: string
@@ -48,6 +50,7 @@ export default function Dashboard() {
     symbol: ''
   })
   const [chartError, setChartError] = useState(false)
+  const [portfolioFromManual, setPortfolioFromManual] = useState(false)
 
   const openChart = (name: string) => {
     setChartError(false)
@@ -69,7 +72,17 @@ export default function Dashboard() {
         ])
         setIndices(indicesRes.data)
         setCommodities(commoditiesRes.data)
-        setPortfolio(portfolioRes.data)
+        const saved = getSavedPortfolio()
+        if (saved) {
+          setPortfolio({
+            totalValue: saved.totalValue,
+            totalProfit: saved.totalProfit,
+            profitPercent: saved.profitPercent,
+          })
+          setPortfolioFromManual(true)
+        } else {
+          setPortfolio(portfolioRes.data)
+        }
       } catch (error) {
         console.error('데이터 로딩 실패:', error)
         // 더미 데이터 설정
@@ -84,11 +97,21 @@ export default function Dashboard() {
           { name: '은', value: 32.15, change: -0.25, changePercent: -0.77 },
           { name: '구리', value: 4.25, change: 0.05, changePercent: 1.19 },
         ])
-        setPortfolio({
-          totalValue: 15250000,
-          totalProfit: 1250000,
-          profitPercent: 8.93,
-        })
+        const saved = getSavedPortfolio()
+        if (saved) {
+          setPortfolio({
+            totalValue: saved.totalValue,
+            totalProfit: saved.totalProfit,
+            profitPercent: saved.profitPercent,
+          })
+          setPortfolioFromManual(true)
+        } else {
+          setPortfolio({
+            totalValue: 15250000,
+            totalProfit: 1250000,
+            profitPercent: 8.93,
+          })
+        }
       } finally {
         setLoading(false)
       }
@@ -190,7 +213,22 @@ export default function Dashboard() {
 
       {/* 포트폴리오 요약 */}
       {portfolio && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h2 className="text-lg font-semibold text-gray-800">내 포트폴리오</h2>
+            {portfolioFromManual && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-sm text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
+                  <CheckCircle className="w-4 h-4" />
+                  내 계좌 연동됨
+                </span>
+                <Link to="/portfolio" className="text-sm text-primary-600 hover:underline">
+                  포트폴리오에서 수정
+                </Link>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="card">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary-50 rounded-lg">
@@ -215,6 +253,7 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
+          </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 # 키움증권 주식 투자 시스템
 
-키움증권 Open API+를 활용한 실시간 시황 분석 및 자동매매 시스템입니다.
+키움증권 REST API(앱키/시크릿)를 활용한 시황 분석 및 자동매매 시스템입니다.
 
 ## 주요 기능
 
@@ -10,20 +10,12 @@
 
 ## 사전 준비
 
-### 1. 키움증권 Open API+ 신청
-1. 키움증권 홈페이지 > 온라인 > Open API+ > 사용 신청
-2. KOA Studio 설치 (API 테스트 도구)
+### 1. 키움증권 REST API 앱키/시크릿
+키움증권 REST API 서비스에서 앱키·시크릿을 발급받아 `backend/.env`에 설정합니다.  
+상세: **[docs/KIWOOM_SETUP.md](docs/KIWOOM_SETUP.md)**.
 
-### 2. 32비트 Python 설치 (필수!)
-키움 API는 32비트 Python만 지원합니다.
-```bash
-# Python 3.9 32-bit 다운로드
-https://www.python.org/downloads/release/python-3913/
-# Windows x86 executable installer 선택
-```
-
-### 3. OpenAI API 키 발급
-시황 분석 기능을 위해 OpenAI API 키가 필요합니다.
+### 2. OpenAI API 키 발급
+시황 분석 기능을 위해 OpenAI API 키가 필요합니다.  
 https://platform.openai.com/api-keys
 
 ## 설치 방법
@@ -33,7 +25,7 @@ https://platform.openai.com/api-keys
 cd backend
 pip install -r requirements.txt
 copy .env.example .env
-# .env 파일에 API 키와 계좌번호 입력
+# .env에 KIWOOM_APPKEY, KIWOOM_SECRETKEY, OPENAI_API_KEY 등 입력
 ```
 
 ### Frontend 설치
@@ -80,7 +72,7 @@ cursor_money/
 
 ## 주의사항
 
-- 키움 API는 **Windows에서만** 동작합니다
+- 키움 연동은 **REST API 앱키/시크릿**으로 하며, OS 제한 없음 (상세는 [docs/KIWOOM_SETUP.md](docs/KIWOOM_SETUP.md))
 - **장 운영시간**(09:00~15:30)에만 실시간 데이터 수신 가능
 - 자동매매는 반드시 **모의투자**로 먼저 테스트하세요
 - API 호출 제한이 있으니 과도한 요청을 피하세요
