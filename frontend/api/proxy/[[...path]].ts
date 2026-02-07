@@ -52,6 +52,10 @@ export default async function handler(request: Request): Promise<Response> {
   const targetUrl = getTargetUrl(pathSegments, search)
   const method = request.method
   const headers = forwardRequestHeaders(request)
+  // ngrok 무료: 서버 요청 시 이 헤더 없으면 차단/403 등 → 405처럼 보일 수 있음
+  if (BACKEND_URL.includes('ngrok-free.app') || BACKEND_URL.includes('ngrok.io')) {
+    headers['ngrok-skip-browser-warning'] = 'true'
+  }
   const body = method !== 'GET' && method !== 'HEAD' ? await request.arrayBuffer() : undefined
 
   try {
