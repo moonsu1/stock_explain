@@ -3,16 +3,23 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import axios from 'axios'
 import App from './App'
+import { ErrorLogProvider } from './contexts/ErrorLogContext'
+import { pushError } from './utils/errorLog'
 import './index.css'
 
 const apiUrl = (import.meta.env.VITE_API_URL || '').trim()
 const isDev = import.meta.env.DEV
 const isLocalhostUrl = (url: string) => /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
+const isMobile = () => typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 let baseUrl = apiUrl
 try {
   if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
-    // Vercel이어도 VITE_API_URL이 localhost면 그대로 사용 → 로컬 백엔드만 쓸 때 BACKEND_URL 없이 동작
-    baseUrl = apiUrl && isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
+    // 모바일에서는 localhost = 기기 자신이라 백엔드 연결 불가 → 무조건 프록시 사용 (BACKEND_URL 필요)
+    if (isMobile()) {
+      baseUrl = '/api/proxy'
+    } else {
+      baseUrl = apiUrl && isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
+    }
   } else if (isDev) {
     baseUrl = ''
   }
@@ -25,6 +32,17 @@ if (!isDev) {
   axios.defaults.headers.common['Pragma'] = 'no-cache'
 }
 console.log('[Config] API base:', baseUrl || '(vite proxy)')
+
+axios.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    const url = err.config?.url != null ? String(err.config.baseURL || '') + err.config.url : undefined
+    const status = err.response?.status
+    const msg = err.message || 'Network Error'
+    pushError(msg, { url, status, detail: err.response?.data ? JSON.stringify(err.response.data).slice(0, 200) : undefined })
+    return Promise.reject(err)
+  }
+)
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -63,9 +81,11 @@ function mount() {
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <ErrorLogProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ErrorLogProvider>
         </ErrorBoundary>
       </React.StrictMode>,
     )

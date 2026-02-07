@@ -20,8 +20,14 @@ function isLocalhostUrl(url: string): boolean {
   return /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
 }
 
-/** API 요청 시 사용할 base URL. Vercel이어도 VITE_API_URL이 localhost면 로컬 백엔드 사용 */
+function isMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
+/** API 요청 시 사용할 base URL. 모바일+Vercel이면 무조건 프록시 (localhost 불가) */
 export function getApiBaseUrl(): string {
+  if (isVercelHost() && isMobile()) return '/api/proxy'
   if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
   if (isDev()) return ''
@@ -30,6 +36,7 @@ export function getApiBaseUrl(): string {
 
 /** 스트리밍 등 fetch()에 넣을 base (끝에 / 없음) */
 export function getApiBaseForFetch(): string {
+  if (isVercelHost() && isMobile()) return '/api/proxy'
   if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
   if (isDev()) return ''
