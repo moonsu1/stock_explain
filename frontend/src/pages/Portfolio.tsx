@@ -73,6 +73,10 @@ export default function Portfolio() {
       }
     } catch (e) {
       console.error('연결 실패:', e)
+      const status = axios.isAxiosError(e) ? e.response?.status : null
+      if (status === 405) {
+        alert('백엔드 연결 오류(405). Vercel 환경 변수 BACKEND_URL과 백엔드(Railway 등) 서버가 동작 중인지 확인하세요.')
+      }
       const [accRes, stRes] = await Promise.all([
         axios.get('/api/portfolio/account').catch(() => ({ data: null })),
         axios.get('/api/portfolio/stocks').catch(() => ({ data: [] })),

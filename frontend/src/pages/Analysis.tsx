@@ -328,11 +328,18 @@ export default function Analysis() {
     } catch (error: unknown) {
       console.error('분석 생성 실패:', error)
       let msg = '분석 생성에 실패했습니다.'
-      if (axios.isAxiosError(error) && error.response?.data?.detail !== undefined) {
-        const d = error.response.data.detail
-        msg = Array.isArray(d)
-          ? d.map((x: { msg?: string }) => x?.msg || JSON.stringify(x)).join(' ')
-          : String(d)
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status
+        if (status === 405) {
+          msg = '백엔드 연결 오류(405). Vercel의 BACKEND_URL과 Railway 등 백엔드 서버가 켜져 있는지 확인하세요.'
+        } else if (error.response?.data?.detail !== undefined) {
+          const d = error.response.data.detail
+          msg = Array.isArray(d)
+            ? d.map((x: { msg?: string }) => x?.msg || JSON.stringify(x)).join(' ')
+            : String(d)
+        } else {
+          msg = error.message || `요청 실패 (${status ?? '네트워크'})`
+        }
       } else if (error instanceof Error) {
         msg = error.message
       }

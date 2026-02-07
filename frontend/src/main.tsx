@@ -5,17 +5,25 @@ import axios from 'axios'
 import App from './App'
 import './index.css'
 
-const apiUrl = import.meta.env.VITE_API_URL || ''
+const apiUrl = (import.meta.env.VITE_API_URL || '').trim()
+const isDev = import.meta.env.DEV
 let baseUrl = apiUrl
 try {
   if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
     baseUrl = '/api/proxy'
+  } else if (isDev) {
+    // 로컬 개발: baseURL 비움 → 상대 경로 /api/... 가 Vite 프록시로 8000 전달
+    baseUrl = ''
   }
 } catch (_) {
   baseUrl = apiUrl
 }
 axios.defaults.baseURL = baseUrl
-console.log('[Config] API base:', baseUrl || '(local)')
+if (!isDev) {
+  axios.defaults.headers.common['Cache-Control'] = 'no-cache'
+  axios.defaults.headers.common['Pragma'] = 'no-cache'
+}
+console.log('[Config] API base:', baseUrl || '(vite proxy)')
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
