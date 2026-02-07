@@ -70,6 +70,10 @@ cursor_money/
 └── README.md
 ```
 
+## Vercel 배포 (프론트)
+
+프론트만 Vercel에 올린 경우 **Environment Variables**에 `VITE_API_URL` = 백엔드 URL(예: Railway 주소)을 꼭 넣고 재배포하세요. 안 넣으면 시황 분석·뉴스에서 Failed to fetch 납니다. 자세한 단계: **[docs/VERCEL_DEPLOY.md](docs/VERCEL_DEPLOY.md)**.
+
 ## 주의사항
 
 - 키움 연동은 **REST API 앱키/시크릿**으로 하며, OS 제한 없음 (상세는 [docs/KIWOOM_SETUP.md](docs/KIWOOM_SETUP.md))

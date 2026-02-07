@@ -51,16 +51,44 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+def _is_vercel_origin(origin: str) -> bool:
+    if not origin or not isinstance(origin, str):
+        return False
+    o = origin.strip().lower()
+    return o.endswith(".vercel.app") or o == "https://vercel.app" or ".vercel.app" in o
+
+
+def _cors_headers(origin: str) -> dict:
+    allow_origin = origin if _is_vercel_origin(origin) else "*"
+    return {
+        "Access-Control-Allow-Origin": allow_origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400",
+    }
+
+
 class OptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS":
-            return Response(status_code=200, headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                "Access-Control-Max-Age": "86400",
-            })
+            origin = request.headers.get("origin") or ""
+            return Response(status_code=200, headers=_cors_headers(origin))
         return await call_next(request)
+
+
+class VercelCORSFixMiddleware(BaseHTTPMiddleware):
+    """Vercel 배포 URL은 푸시마다 바뀔 수 있어서, *.vercel.app 출처는 항상 허용."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        origin = request.headers.get("origin") or ""
+        if _is_vercel_origin(origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            if "Access-Control-Allow-Credentials" not in response.headers:
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
+
 
 _frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip()
 if _frontend_origin:
@@ -73,6 +101,7 @@ else:
     _cors_origins = ["*"]
     _cors_credentials = False
 
+app.add_middleware(VercelCORSFixMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
