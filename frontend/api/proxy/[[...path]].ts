@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Vercel serverless proxy: /api/proxy/* -> BACKEND_URL/api/*
  * 카톡 등 인앱 브라우저에서 크로스 오리진 차단 회피용.
