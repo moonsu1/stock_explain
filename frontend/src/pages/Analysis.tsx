@@ -407,7 +407,12 @@ export default function Analysis() {
       } catch {
         // 보유 종목 없으면 빈 배열로 진행
       }
-      const apiBase = getApiBaseForFetch()
+      let apiBase = import.meta.env.VITE_API_URL || ''
+      try {
+        apiBase = getApiBaseForFetch()
+      } catch {
+        apiBase = import.meta.env.VITE_API_URL || ''
+      }
       // GET + code:name 쿼리 사용 (POST 시 405 나는 환경 회피)
       const holdingsParam = holdings.length
         ? '?holdings=' + encodeURIComponent(holdings.map((h) => `${h.code}:${h.name}`).join(','))

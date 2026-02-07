@@ -3,12 +3,19 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import axios from 'axios'
 import App from './App'
-import { getApiBaseUrl } from './utils/apiBase'
 import './index.css'
 
-// API base: Vercel이면 같은 오리진 프록시(/api/proxy) 사용 → 카톡 인앱 브라우저 대응
-axios.defaults.baseURL = getApiBaseUrl() || import.meta.env.VITE_API_URL || ''
-console.log('[Config] API base:', axios.defaults.baseURL || '(local)')
+const apiUrl = import.meta.env.VITE_API_URL || ''
+let baseUrl = apiUrl
+try {
+  if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
+    baseUrl = '/api/proxy'
+  }
+} catch (_) {
+  baseUrl = apiUrl
+}
+axios.defaults.baseURL = baseUrl
+console.log('[Config] API base:', baseUrl || '(local)')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
