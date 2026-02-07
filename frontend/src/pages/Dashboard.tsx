@@ -72,6 +72,7 @@ export default function Dashboard() {
   })
   const [chartError, setChartError] = useState(false)
   const [portfolioFromManual, setPortfolioFromManual] = useState(false)
+  const [apiFailed, setApiFailed] = useState(false)
 
   const openChart = (name: string) => {
     setChartError(false)
@@ -91,6 +92,7 @@ export default function Dashboard() {
           axios.get('/api/market/commodities'),
           axios.get('/api/portfolio/summary'),
         ])
+        setApiFailed(false)
         const indicesArr = Array.isArray(indicesRes.data) ? indicesRes.data : []
         const commoditiesArr = Array.isArray(commoditiesRes.data) ? commoditiesRes.data : []
         setIndices(indicesArr.length > 0 ? indicesArr : DUMMY_INDICES)
@@ -104,6 +106,7 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('데이터 로딩 실패:', error)
+        setApiFailed(true)
         setIndices(DUMMY_INDICES)
         setCommodities(DUMMY_COMMODITIES)
         const saved = getSavedPortfolio()
@@ -135,6 +138,12 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
         <p className="text-gray-500 mt-1">실시간 시장 현황과 내 포트폴리오</p>
       </div>
+
+      {apiFailed && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          백엔드에 연결할 수 없어 기본 데이터를 표시합니다. 로컬에서 백엔드(localhost:8000)가 실행 중인지 확인하세요.
+        </div>
+      )}
 
       {/* 주요 지수 카드 */}
       <div>

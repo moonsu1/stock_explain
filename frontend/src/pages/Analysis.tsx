@@ -300,9 +300,10 @@ export default function Analysis() {
       setNews(Array.isArray(response?.data) ? response.data : [])
     } catch (error) {
       console.error('뉴스 로딩 실패:', error)
-      setNews([
-        { title: '뉴스를 불러오는 중 오류가 발생했습니다', source: '-', time: '-', url: '#' },
-      ])
+      const msg = axios.isAxiosError(error) && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')
+        ? '백엔드에 연결할 수 없습니다. 로컬에서 백엔드(localhost:8000)가 실행 중인지 확인하세요.'
+        : '뉴스를 불러오는 중 오류가 발생했습니다'
+      setNews([{ title: msg, source: '-', time: '-', url: '#' }])
     } finally {
       setLoading(false)
     }
@@ -330,7 +331,10 @@ export default function Analysis() {
       let msg = '분석 생성에 실패했습니다.'
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
-        if (status === 405) {
+        const isNetworkError = error.code === 'ERR_NETWORK' || error.message === 'Network Error'
+        if (isNetworkError || !status) {
+          msg = '백엔드에 연결할 수 없습니다. 로컬에서 백엔드(localhost:8000)가 실행 중인지 확인하세요.'
+        } else if (status === 405) {
           msg = '백엔드 연결 오류(405). Vercel의 BACKEND_URL과 Railway 등 백엔드 서버가 켜져 있는지 확인하세요.'
         } else if (error.response?.data?.detail !== undefined) {
           const d = error.response.data.detail
@@ -362,7 +366,7 @@ export default function Analysis() {
       { pattern: /###?\s*나스닥[^\n]*\n([\s\S]*?)(?=\n###?\s|\n##\s|$)/i, key: 'nasdaqAnalysis' },
       { pattern: /##\s*기술적 지표[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'technicalAnalysis' },
       { pattern: /##\s*원자재 및 비트코인[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'commoditiesAnalysis' },
-      { pattern: /##\s*보유 종목[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'holdingsStrategy' },
+      { pattern: /##\s*보유\s*종목[^\n]*\n([\s\S]*?)(?=\n##\s|$)/i, key: 'holdingsStrategy' },
       { pattern: /###?\s*1\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme1', isTheme: 1 },
       { pattern: /###?\s*2\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme2', isTheme: 2 },
       { pattern: /###?\s*3\.\s*([^\n]+)\n([\s\S]*?)(?=\n###?\s*\d|\n##\s|$)/i, key: 'theme3', isTheme: 3 },
@@ -492,7 +496,11 @@ export default function Analysis() {
       }
     } catch (error) {
       console.error('스트리밍 분석 실패:', error)
-      setStreamError(error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.')
+      const errMsg = error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.'
+      const isNetworkErr = errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg === 'Network Error'
+      setStreamError(isNetworkErr
+        ? '백엔드에 연결할 수 없습니다. 로컬에서 백엔드(localhost:8000)가 실행 중인지 확인하세요.'
+        : errMsg)
       setStatusMessage('')
     } finally {
       setIsStreaming(false)
@@ -696,7 +704,18 @@ export default function Analysis() {
           )}
 
           {/* 보유 종목 전망 및 전략 - 종목별 카드 */}
-          {streamingSections.holdingsStrategy && (() => {
+          {(streamingSections.holdingsStrategy || (!isStreaming && (streamingText?.length ?? 0) > 100)) && (() => {
+            if (!streamingSections.holdingsStrategy) {
+              return (
+                <div className="card border-l-4 border-l-indigo-400">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ClipboardList className="w-5 h-5 text-indigo-600" />
+                    <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
+                  </div>
+                  <p className="text-sm text-gray-500">보유 종목이 없거나 해당 섹션이 생성되지 않았습니다.</p>
+                </div>
+              )
+            }
             const holdingCards = parseHoldingsStrategy(streamingSections.holdingsStrategy)
             return (
             <div className="card border-l-4 border-l-indigo-400">
