@@ -1,9 +1,9 @@
-/// <reference types="node" />
 /**
  * Vercel serverless proxy: /api/proxy/* -> BACKEND_URL/api/*
  * 카톡 등 인앱 브라우저에서 크로스 오리진 차단 회피용.
  * Vercel 환경 변수에 BACKEND_URL (백엔드 주소) 설정 필요.
  */
+declare const process: { env: Record<string, string | undefined> }
 const BACKEND_URL = process.env.BACKEND_URL || process.env.VITE_API_URL || ''
 
 const FORWARD_HEADERS = ['content-type', 'accept', 'accept-language', 'authorization']
