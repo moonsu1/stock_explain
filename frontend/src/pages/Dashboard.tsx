@@ -70,8 +70,8 @@ export default function Dashboard() {
           axios.get('/api/market/commodities'),
           axios.get('/api/portfolio/summary'),
         ])
-        setIndices(indicesRes.data)
-        setCommodities(commoditiesRes.data)
+        setIndices(Array.isArray(indicesRes.data) ? indicesRes.data : [])
+        setCommodities(Array.isArray(commoditiesRes.data) ? commoditiesRes.data : [])
         const saved = getSavedPortfolio()
         if (saved) {
           setPortfolio({
@@ -139,7 +139,7 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">주요 지수</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {indices.map((index) => (
+          {(Array.isArray(indices) ? indices : []).map((index) => (
             <div key={index.name} className="card">
               <div className="flex justify-between items-start">
                 <div>
@@ -175,7 +175,7 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">원자재 & 해외 지수</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {commodities.map((item) => (
+          {(Array.isArray(commodities) ? commodities : []).map((item) => (
             <div key={item.name} className="card">
               <div className="flex justify-between items-start">
                 <div>
