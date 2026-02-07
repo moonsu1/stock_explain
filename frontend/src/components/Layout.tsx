@@ -63,6 +63,22 @@ export default function Layout() {
         </div>
       </header>
 
+      {/* 모바일용 플로팅 버튼: 에러 있으면 항상 보임 → 탭하면 로그 열림 */}
+      {errors.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-amber-500 text-white shadow-lg hover:bg-amber-600 sm:hidden"
+          title="에러 로그 보기"
+          aria-label="에러 로그 보기"
+        >
+          <AlertCircle className="w-7 h-7" />
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+            {errors.length > 10 ? '10+' : errors.length}
+          </span>
+        </button>
+      )}
+
       {/* 에러 로그 모달 (모바일에서 탭해서 확인) */}
       {open && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40" onClick={() => setOpen(false)}>
