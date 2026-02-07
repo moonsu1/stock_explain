@@ -20,11 +20,6 @@ function isLocalhostUrl(url: string): boolean {
   return /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
 }
 
-function isMobile(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-}
-
 /** API 요청 시 사용할 base URL. VITE_BACKEND_URL 있으면 직접 호출, 없으면 /api/proxy */
 export function getApiBaseUrl(): string {
   if (isVercelHost() && buildTimeApiUrl && !isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
