@@ -156,6 +156,17 @@ class MarketAnalysis:
         }
 
 
+def _normalize_holdings_strategy_field(raw: Any) -> str:
+    """LLM이 holdings_strategy를 객체로 줄 수 있으므로 항상 문자열로 반환. 프론트 카드 파싱용."""
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, dict):
+        return json.dumps(raw, ensure_ascii=False)
+    return str(raw)
+
+
 class MarketAnalyzer:
     """시황 분석기 (Professional Version)"""
     
@@ -235,6 +246,11 @@ class MarketAnalyzer:
             technical_indicators = self.get_technical_indicators(user_holdings if user_holdings else None)
         except Exception as e:
             print(f"[Warning] get_technical_indicators failed: {e}")
+        if not technical_indicators:
+            try:
+                technical_indicators = self.get_technical_indicators()
+            except Exception:
+                pass
         tech_summary = get_market_technical_summary(technical_indicators)
         return indices, news, technical_indicators, tech_summary
 
@@ -320,11 +336,15 @@ class MarketAnalyzer:
             
             content = content.strip()
             
-            # JSON 추출
+            # JSON 추출 (마크다운 래퍼 또는 raw JSON)
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
                 content = content.split("```")[1].split("```")[0].strip()
+            elif "{" in content and "}" in content:
+                start = content.index("{")
+                end = content.rindex("}") + 1
+                content = content[start:end]
             
             analysis_data = json.loads(content)
             print("[OK] GPT analysis complete")
@@ -527,7 +547,7 @@ class MarketAnalyzer:
             )
             
             print("[Info] Calling OpenAI API with streaming...")
-            
+            stream_max = self.max_tokens * 2 if user_holdings else self.max_tokens  # 보유 종목 있으면 토큰 여유
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -540,7 +560,7 @@ class MarketAnalyzer:
                         "content": prompt
                     }
                 ],
-                max_tokens=self.max_tokens,
+                max_tokens=min(stream_max, 4096),
                 temperature=0.3,  # 낮은 temperature로 일관성 높임
                 stream=True
             )
@@ -628,6 +648,9 @@ class MarketAnalyzer:
         
         # 기술적 지표
         tech_text = format_technical_for_prompt(technical_indicators)
+        tech_note = ""
+        if "없음" in tech_text or not technical_indicators:
+            tech_note = "\n(기술적 지표가 일시적으로 없을 수 있음. 이 경우 '제공된 기술적 지표가 없다'고 쓰지 말고, 지수·뉴스·원자재만으로 기술적 관점을 1~2문장으로 서술하세요.)\n"
         
         # 보유 종목 정보 (종목별 이름·기술지표·뉴스)
         holdings_text = ""
@@ -670,6 +693,7 @@ class MarketAnalyzer:
 {news_text}
 
 {tech_text}
+{tech_note}
 {holdings_text}
 
 중요: 위에서 제공한 데이터만을 근거로 분석하세요. 원자재 및 비트코인 현황과 시장적 의견을 반드시 포함하세요.{holdings_instruction}
@@ -681,6 +705,12 @@ class MarketAnalyzer:
 
 ## 시장 심리
 (공포/불안/중립/낙관/탐욕 중 하나 - RSI와 지수 등락률 기준으로 판단하고 그 근거 명시)
+""" + ("""
+
+## 보유 종목 전망 및 전략
+반드시 이 제목으로 작성. 각 종목은 **종목명(코드)** 형식 (예: 삼성전자(005930)). 종목당 전망 2~3문장, 전략 2~3문장으로 상세히.
+
+""" if user_holdings else "") + """
 
 ## 지수별 분석
 (각 지수에 대해 등락 원인과 함께 최근 단기 추세/흐름을 1~2문장 포함)
@@ -724,25 +754,23 @@ class MarketAnalyzer:
 
 ## 투자 전략 제안
 (현재 시장 상황에서 어떻게 대응해야 하는지 구체적 액션 포함)"""
-        if user_holdings:
-            prompt += """
-
-## 보유 종목 전망 및 전략
-반드시 위 제목으로 섹션을 작성할 것. 각 종목은 반드시 **종목명(코드)** 형식으로 표기 (예: 삼성전자(005930)). 위에 제공된 보유 종목별 뉴스·기술지표·지수·시황을 적극 활용하여, 종목당 전망 2~3문장(지수·기술·뉴스·시황·시계열 추세 종합), 전략 2~3문장(매수/매도/관망·목표가·손절 등 구체적 대응)으로 상세히 서술할 것."""
         prompt += "\n\n"
         return prompt
 
     def _parse_analysis_response(self, data: Dict, tech_summary: Dict) -> MarketAnalysis:
-        """GPT 응답 파싱"""
-        
-        # 기술적 분석 파싱
+        """GPT 응답 파싱 (기술지표는 GPT 응답 우선, 없으면 수집된 tech_summary로 채움)"""
         tech_data = data.get("technical_analysis", {})
+        avg_rsi = tech_summary.get("avg_rsi", 50)
+        overall = tech_data.get("overall") or tech_summary.get("overall", "분석 중")
+        rsi_status = tech_data.get("rsi_comment") or f"평균 RSI {avg_rsi:.1f}"
+        bb_default = f"과매도 {len(tech_summary.get('oversold_stocks') or [])}종목, 과매수 {len(tech_summary.get('overbought_stocks') or [])}종목"
+        ma_default = tech_summary.get("overall", "")
         technical_summary = TechnicalSummary(
-            overall=tech_data.get("overall", tech_summary.get("overall", "분석 중")),
-            avg_rsi=tech_summary.get("avg_rsi", 50),
-            rsi_status=tech_data.get("rsi_comment", ""),
-            bollinger_status=tech_data.get("bb_comment", ""),
-            ma_status=tech_data.get("ma_comment", ""),
+            overall=overall,
+            avg_rsi=avg_rsi,
+            rsi_status=rsi_status,
+            bollinger_status=tech_data.get("bb_comment") or bb_default,
+            ma_status=tech_data.get("ma_comment") or ma_default,
             oversold_stocks=tech_summary.get("oversold_stocks", []),
             overbought_stocks=tech_summary.get("overbought_stocks", [])
         )
@@ -771,7 +799,7 @@ class MarketAnalyzer:
             recommendation=data.get("recommendation", ""),
             generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             commodities_analysis=data.get("commodities_analysis", ""),
-            holdings_strategy=data.get("holdings_strategy", "")
+            holdings_strategy=_normalize_holdings_strategy_field(data.get("holdings_strategy", ""))
         )
     
     def _generate_mock_analysis(

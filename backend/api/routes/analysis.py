@@ -90,7 +90,9 @@ async def generate_analysis(request: Request) -> Dict[str, Any]:
             analyzer = get_analyzer()
             indices, news, technical_indicators, _ = analyzer._collect_market_data(codes if codes else None)
             mock = analyzer._generate_mock_analysis(indices, news, technical_indicators, codes if codes else None)
-            return mock.to_dict()
+            out = mock.to_dict()
+            out["isMock"] = True
+            return out
         except Exception as fallback_e:
             logger.exception("mock fallback failed: %s", fallback_e)
             raise HTTPException(status_code=500, detail=str(e))

@@ -45,6 +45,7 @@ interface MarketAnalysis {
   generatedAt: string
   commoditiesAnalysis?: string
   holdingsStrategy?: string
+  isMock?: boolean
 }
 
 // 시장 심리 색상
@@ -63,6 +64,104 @@ const getRsiColor = (rsi: number) => {
   if (rsi >= 60) return 'text-orange-500'
   if (rsi <= 40) return 'text-cyan-500'
   return 'text-gray-500'
+}
+
+/** 종목별 전망/전략 카드용 */
+export interface HoldingCard {
+  name: string
+  outlook: string
+  strategy: string
+}
+
+/** 보유 종목 전략 텍스트/JSON을 종목별 카드 배열로 파싱. 파싱 실패 시 null */
+function parseHoldingsStrategy(raw: string | Record<string, unknown> | null | undefined): HoldingCard[] | null {
+  if (raw == null) return null
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const entries = Object.entries(raw)
+    if (entries.length === 0) return null
+    const cards: HoldingCard[] = entries.map(([name, v]) => {
+      if (typeof v === 'string') {
+        const s = v.trim()
+        const outlookMatch = s.match(/(?:전망|outlook)\s*[：:]?\s*([^\n]+)/i)
+        const strategyMatch = s.match(/(?:전략|strategy)\s*[：:]?\s*([^\n]+)/i)
+        return {
+          name: name.trim(),
+          outlook: outlookMatch ? outlookMatch[1].trim() : s,
+          strategy: strategyMatch ? strategyMatch[1].trim() : '',
+        }
+      }
+      const o = (v as Record<string, unknown>) ?? {}
+      const outlook = String(o.전망 ?? o.outlook ?? '')
+      const strategy = String(o.전략 ?? o.strategy ?? '')
+      return { name: name.trim(), outlook, strategy }
+    })
+    return cards.length > 0 ? cards : null
+  }
+  const str = typeof raw === 'string' ? raw.trim() : ''
+  if (!str) return null
+  try {
+    if (str.startsWith('{')) {
+      const obj = JSON.parse(str) as Record<string, unknown>
+      return parseHoldingsStrategy(obj)
+    }
+  } catch {
+    // ignore
+  }
+  const cards: HoldingCard[] = []
+  const codeInParen = /\([A-Za-z0-9]+\)/
+  const extractBlock = (block: string): HoldingCard | null => {
+    const trimmed = block.trim()
+    if (!trimmed) return null
+    const firstLine = trimmed.split('\n')[0] ?? ''
+    const name = firstLine.replace(/^###\s*/, '').replace(/^\*\*/, '').replace(/\*\*$/, '').trim()
+    if (!name || !codeInParen.test(name)) return null
+    const body = trimmed.includes('\n') ? trimmed.slice(trimmed.indexOf('\n') + 1) : ''
+    const outlookMatch = body.match(/(?:\*\*전망\*\*|전망)\s*[：:]?\s*([^\n]+(?:\n(?!\s*[-*]\s*\*\*전략|\n\*\*[^\n]+\([A-Za-z0-9]+\))[^\n]*)*)/i)
+    const strategyMatch = body.match(/(?:\*\*전략\*\*|전략)\s*[：:]?\s*([^\n]+(?:\n(?!\s*[-*]\s*\*\*[^\n]*전망|\n\*\*[^\n]+\([A-Za-z0-9]+\))[^\n]*)*)/i)
+    const outlook = outlookMatch ? outlookMatch[1].replace(/\n/g, ' ').trim() : ''
+    const strategy = strategyMatch ? strategyMatch[1].replace(/\n/g, ' ').trim() : ''
+    if (outlook || strategy) return { name, outlook, strategy }
+    return null
+  }
+  // 실시간: ### 종목(코드) 또는 **종목(코드)** 로 구분된 블록 (코드: 숫자 또는 영문+숫자)
+  const blockSplitters = [
+    /(?=###\s[^\n]+\([A-Za-z0-9]+\))/,
+    /(?=\n\*\*[^\n]*?\([A-Za-z0-9]+\)\*\*)/,
+    /(?=\n\n[^\n]+\([A-Za-z0-9]+\)\s*\n)/,
+  ]
+  for (const re of blockSplitters) {
+    const parts = str.split(re).filter((s) => s.trim().length > 0)
+    if (parts.length >= 2 || (parts.length === 1 && codeInParen.test(parts[0]))) {
+      for (const part of parts) {
+        const card = extractBlock(part)
+        if (card) cards.push(card)
+      }
+      if (cards.length > 0) return cards
+    }
+    cards.length = 0
+  }
+  const singleBlock = /^([^\n]+\([A-Za-z0-9]+\))\s*\n([\s\S]*)/m.exec(str)
+  if (singleBlock) {
+    const body = singleBlock[2]
+    const outlookMatch = body.match(/(?:\*\*?전망\*\*?|전망)\s*[：:]?\s*([^\n]+)/i)
+    const strategyMatch = body.match(/(?:\*\*?전략\*\*?|전략)\s*[：:]?\s*([^\n]+)/i)
+    cards.push({
+      name: singleBlock[1].replace(/\*\*/g, '').trim(),
+      outlook: outlookMatch ? outlookMatch[1].trim() : '',
+      strategy: strategyMatch ? strategyMatch[1].trim() : '',
+    })
+  }
+  if (cards.length === 0 && codeInParen.test(str) && /전망|전략/i.test(str)) {
+    const boldNameBlocks = str.split(/(\*\*[^*]+?\([A-Za-z0-9]+\)\*\*)/)
+    for (let i = 1; i < boldNameBlocks.length; i += 2) {
+      const name = boldNameBlocks[i].replace(/\*\*/g, '').trim()
+      const body = boldNameBlocks[i + 1] ?? ''
+      const outlookMatch = body.match(/(?:\*\*?전망\*\*?|전망)\s*[：:]?\s*([^\n]+)/i)
+      const strategyMatch = body.match(/(?:\*\*?전략\*\*?|전략)\s*[：:]?\s*([^\n]+)/i)
+      if (name) cards.push({ name, outlook: outlookMatch ? outlookMatch[1].trim() : '', strategy: strategyMatch ? strategyMatch[1].trim() : '' })
+    }
+  }
+  return cards.length > 0 ? cards : null
 }
 
 // 스트리밍 섹션 타입
@@ -96,6 +195,71 @@ const initialSections: StreamingSections = {
   theme3: { name: '', content: '' },
   riskFactors: '',
   recommendation: ''
+}
+
+/** 구조화 분석 응답 정규화: snake_case도 camelCase로 통일, 누락 필드 기본값으로 흰화면/크래시 방지 */
+function normalizeAnalysisResponse(data: Record<string, unknown> | null): MarketAnalysis | null {
+  if (!data || typeof data !== 'object') return null
+  const get = (camel: string, snake: string) =>
+    (data[camel] ?? data[snake]) as string | undefined
+  const tech = (data.technicalSummary ?? data.technical_summary) as Record<string, unknown> | undefined
+  const safeTech: TechnicalSummary = tech
+    ? {
+        overall: String(tech.overall ?? ''),
+        avgRsi: Number(tech.avgRsi ?? tech.avg_rsi ?? 50),
+        rsiStatus: String(tech.rsiStatus ?? tech.rsi_status ?? ''),
+        bollingerStatus: String(tech.bollingerStatus ?? tech.bollinger_status ?? ''),
+        maStatus: String(tech.maStatus ?? tech.ma_status ?? ''),
+        oversoldStocks: Array.isArray(tech.oversoldStocks ?? tech.oversold_stocks) ? (tech.oversoldStocks ?? tech.oversold_stocks) as string[] : [],
+        overboughtStocks: Array.isArray(tech.overboughtStocks ?? tech.overbought_stocks) ? (tech.overboughtStocks ?? tech.overbought_stocks) as string[] : [],
+      }
+    : {
+        overall: '', avgRsi: 50, rsiStatus: '', bollingerStatus: '', maStatus: '',
+        oversoldStocks: [], overboughtStocks: [],
+      }
+  const holdingsRaw = data.holdingsStrategy ?? data.holdings_strategy
+  let holdingsStrategy = ''
+  if (typeof holdingsRaw === 'string') {
+    holdingsStrategy = holdingsRaw
+  } else if (holdingsRaw != null && typeof holdingsRaw === 'object') {
+    const o = holdingsRaw as Record<string, unknown>
+    if (typeof o.text === 'string') holdingsStrategy = o.text
+    else if (typeof o.content === 'string') holdingsStrategy = o.content
+    else if (typeof o.message === 'string') holdingsStrategy = o.message
+    else if (Array.isArray(o) && o.every((x) => typeof x === 'string')) holdingsStrategy = (o as string[]).join('\n')
+    else if (Array.isArray(o)) holdingsStrategy = (o as unknown[]).map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join('\n')
+    else {
+      // 객체인데 위에 해당 없으면, 값 중 첫 번째 문자열 사용 또는 예쁘게 JSON 출력
+      const firstStr = Object.values(o).find((v) => typeof v === 'string') as string | undefined
+      holdingsStrategy = firstStr ?? JSON.stringify(o, null, 2)
+    }
+  }
+  const hotThemesRaw = data.hotThemes ?? data.hot_themes
+  const hotThemes: HotTheme[] = Array.isArray(hotThemesRaw)
+    ? hotThemesRaw.map((t: Record<string, unknown>) => ({
+        name: String(t.name ?? ''),
+        reason: String(t.reason ?? ''),
+        kospiLeader: String(t.kospiLeader ?? t.kospi_leader ?? ''),
+        kosdaqLeader: String(t.kosdaqLeader ?? t.kosdaq_leader ?? ''),
+      }))
+    : []
+  return {
+    summary: String(get('summary', 'summary') ?? ''),
+    newsAnalysis: String(get('newsAnalysis', 'news_analysis') ?? ''),
+    kospiAnalysis: String(get('kospiAnalysis', 'kospi_analysis') ?? ''),
+    kosdaqAnalysis: String(get('kosdaqAnalysis', 'kosdaq_analysis') ?? ''),
+    nasdaqAnalysis: String(get('nasdaqAnalysis', 'nasdaq_analysis') ?? ''),
+    technicalSummary: safeTech,
+    marketSentiment: String(get('marketSentiment', 'market_sentiment') ?? '중립'),
+    commoditiesAnalysis: String(get('commoditiesAnalysis', 'commodities_analysis') ?? ''),
+    holdingsStrategy,
+    hotThemes,
+    riskFactors: Array.isArray(data.riskFactors ?? data.risk_factors) ? (data.riskFactors ?? data.risk_factors) as string[] : [],
+    actionItems: Array.isArray(data.actionItems ?? data.action_items) ? (data.actionItems ?? data.action_items) as string[] : [],
+    recommendation: String(get('recommendation', 'recommendation') ?? ''),
+    generatedAt: String(get('generatedAt', 'generated_at') ?? ''),
+    isMock: Boolean(data.isMock),
+  }
 }
 
 export default function Analysis() {
@@ -159,7 +323,7 @@ export default function Analysis() {
         // 보유 종목 없으면 빈 배열로 진행
       }
       const response = await axios.post('/api/analysis/generate', { holdings })
-      setAnalysis(response.data)
+      setAnalysis(normalizeAnalysisResponse(response.data) ?? null)
     } catch (error: unknown) {
       console.error('분석 생성 실패:', error)
       let msg = '분석 생성에 실패했습니다.'
@@ -518,19 +682,34 @@ export default function Analysis() {
             </div>
           )}
 
-          {/* 보유 종목 전망 및 전략 */}
-          {streamingSections.holdingsStrategy && (
+          {/* 보유 종목 전망 및 전략 - 종목별 카드 */}
+          {streamingSections.holdingsStrategy && (() => {
+            const holdingCards = parseHoldingsStrategy(streamingSections.holdingsStrategy)
+            return (
             <div className="card border-l-4 border-l-indigo-400">
               <div className="flex items-center gap-2 mb-3">
                 <ClipboardList className="w-5 h-5 text-indigo-600" />
                 <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
               </div>
-              <p className="text-sm text-gray-600 whitespace-pre-line">
-                {streamingSections.holdingsStrategy}
-                {isStreaming && currentSection.includes('보유 종목') && <span className="animate-pulse">|</span>}
-              </p>
+              {holdingCards ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {holdingCards.map((card, idx) => (
+                    <div key={idx} className="bg-white rounded-xl border border-indigo-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="font-semibold text-indigo-800 mb-3 pb-2 border-b border-indigo-100">{card.name}</div>
+                      {card.outlook && <p className="text-sm text-gray-600 mb-2"><span className="text-indigo-600 font-medium">전망</span> {card.outlook}</p>}
+                      {card.strategy && <p className="text-sm text-gray-700"><span className="text-green-600 font-medium">전략</span> {card.strategy}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600 whitespace-pre-line">
+                  {streamingSections.holdingsStrategy}
+                  {isStreaming && currentSection.includes('보유 종목') && <span className="animate-pulse">|</span>}
+                </p>
+              )}
             </div>
-          )}
+            )
+          })()}
 
           {/* 리스크 요인 & 투자 전략 */}
           {(streamingSections.riskFactors || streamingSections.recommendation) && (
@@ -567,6 +746,11 @@ export default function Analysis() {
       {/* AI 분석 결과 (구조화) */}
       {analysis && (
         <div className="space-y-6">
+          {analysis.isMock && (
+            <div className="card border-amber-200 bg-amber-50 text-amber-800 text-sm">
+              <strong>기본 안내만 표시 중입니다.</strong> OpenAI API 호출에 실패해 임시 문구가 나왔을 수 있습니다. 백엔드의 OPENAI_API_KEY 설정과 네트워크를 확인해 주세요.
+            </div>
+          )}
           {/* 시황 요약 + 시장 심리 */}
           <div className="card bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
             <div className="flex items-center justify-between mb-3">
@@ -675,16 +859,31 @@ export default function Analysis() {
             </div>
           )}
 
-          {/* 보유 종목 전망 및 전략 */}
-          {analysis.holdingsStrategy && (
-            <div className="card border-l-4 border-l-indigo-400">
-              <div className="flex items-center gap-2 mb-3">
-                <ClipboardList className="w-5 h-5 text-indigo-600" />
-                <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
-              </div>
-              <p className="text-sm text-gray-600 whitespace-pre-line">{analysis.holdingsStrategy}</p>
+          {/* 보유 종목 전망 및 전략 - 종목별 카드 */}
+          <div className="card border-l-4 border-l-indigo-400">
+            <div className="flex items-center gap-2 mb-3">
+              <ClipboardList className="w-5 h-5 text-indigo-600" />
+              <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
             </div>
-          )}
+            {(() => {
+              const holdingCards = analysis.holdingsStrategy ? parseHoldingsStrategy(analysis.holdingsStrategy) : null
+              return holdingCards ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {holdingCards.map((card, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-indigo-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="font-semibold text-indigo-800 mb-3 pb-2 border-b border-indigo-100">{card.name}</div>
+                    {card.outlook && <p className="text-sm text-gray-600 mb-2"><span className="text-indigo-600 font-medium">전망</span> {card.outlook}</p>}
+                    {card.strategy && <p className="text-sm text-gray-700"><span className="text-green-600 font-medium">전략</span> {card.strategy}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {analysis.holdingsStrategy || '보유 종목이 없거나 해당 분석 결과가 비어 있습니다.'}
+              </p>
+            )
+            })()}
+          </div>
 
           {/* 지수별 분석 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
