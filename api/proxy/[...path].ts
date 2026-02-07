@@ -35,7 +35,7 @@ function responseHeaders(backendResponse: Response): Record<string, string> {
 
 export const config = { runtime: 'nodejs' }
 
-export default async function handler(request: Request): Promise<Response> {
+async function handleRequest(request: Request): Promise<Response> {
   if (!BACKEND_URL) {
     return new Response(
       JSON.stringify({ error: 'BACKEND_URL not configured on Vercel' }),
@@ -85,3 +85,5 @@ export default async function handler(request: Request): Promise<Response> {
     )
   }
 }
+
+export default { fetch: handleRequest }

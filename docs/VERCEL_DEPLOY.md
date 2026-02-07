@@ -42,6 +42,16 @@
 
 ---
 
+## /api/proxy 404가 날 때
+
+프록시 API는 **저장소 루트**의 `api/` 폴더에 있습니다. Vercel에서 **Root Directory**를 **비워 두세요** (또는 `.`).
+
+- **Vercel** → 프로젝트 → **Settings** → **General** → **Root Directory** = 비움 (또는 `frontend`가 아님)
+- 그러면 루트의 `vercel.json`이 사용되고, `api/proxy`가 배포에 포함됩니다.
+- 설정 변경 후 **Redeploy** 한 번 해주세요.
+
+---
+
 ## 405 / 304 / 대시보드·포트폴리오가 비어 있을 때
 
 - **405 Method Not Allowed**: 키움 연동·구조화 분석 버튼에서 405가 나오면, **백엔드가 해당 URL에서 POST를 받지 못하는 상태**입니다.  
