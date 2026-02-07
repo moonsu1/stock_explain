@@ -76,26 +76,32 @@ def _allowed_origin_for_response(origin: str) -> str | None:
     return None
 
 
-def _cors_headers(origin: str) -> dict:
+def _cors_headers(origin: str, allow_private_network: bool = False) -> dict:
     allow_origin = _allowed_origin_for_response(origin) or "*"
-    return {
+    h = {
         "Access-Control-Allow-Origin": allow_origin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        # Vercel(프로덕션) 빌드가 보내는 Cache-Control/Pragma 허용 → preflight CORS 통과
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Cache-Control, Pragma, Accept",
         "Access-Control-Max-Age": "86400",
     }
+    if allow_private_network:
+        h["Access-Control-Allow-Private-Network"] = "true"
+    return h
 
 
 class OptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS":
             origin = request.headers.get("origin") or ""
-            return Response(status_code=200, headers=_cors_headers(origin))
+            # Chrome Private Network Access: Vercel(공개) → localhost 요청 허용
+            pna = request.headers.get("access-control-request-private-network", "").strip().lower() == "true"
+            return Response(status_code=200, headers=_cors_headers(origin, allow_private_network=pna))
         return await call_next(request)
 
 
 class VercelCORSFixMiddleware(BaseHTTPMiddleware):
-    """Vercel·카톡 인앱 브라우저(Origin: null) 등에서 CORS 통과하도록 허용."""
+    """Vercel·카톡 인앱 브라우저(Origin: null) 등에서 CORS 통과하도록 허용. Private Network Access 대응."""
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -105,6 +111,9 @@ class VercelCORSFixMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Origin"] = allowed
             if "Access-Control-Allow-Credentials" not in response.headers:
                 response.headers["Access-Control-Allow-Credentials"] = "true"
+            # Chrome: 공개 사이트(Vercel)에서 localhost로 요청 시 필요
+            if _is_vercel_origin(origin):
+                response.headers["Access-Control-Allow-Private-Network"] = "true"
         return response
 
 
