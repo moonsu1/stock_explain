@@ -16,16 +16,22 @@ function isDev(): boolean {
   return typeof import.meta !== 'undefined' && !!import.meta.env?.DEV
 }
 
-/** API 요청 시 사용할 base URL */
+function isLocalhostUrl(url: string): boolean {
+  return /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
+}
+
+/** API 요청 시 사용할 base URL. Vercel이어도 VITE_API_URL이 localhost면 로컬 백엔드 사용 */
 export function getApiBaseUrl(): string {
+  if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
-  if (isDev()) return '' // 로컬: Vite 프록시
+  if (isDev()) return ''
   return buildTimeApiUrl
 }
 
 /** 스트리밍 등 fetch()에 넣을 base (끝에 / 없음) */
 export function getApiBaseForFetch(): string {
+  if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
-  if (isDev()) return '' // 로컬: Vite 프록시
+  if (isDev()) return ''
   return buildTimeApiUrl
 }

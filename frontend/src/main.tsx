@@ -7,12 +7,13 @@ import './index.css'
 
 const apiUrl = (import.meta.env.VITE_API_URL || '').trim()
 const isDev = import.meta.env.DEV
+const isLocalhostUrl = (url: string) => /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
 let baseUrl = apiUrl
 try {
   if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
-    baseUrl = '/api/proxy'
+    // Vercel이어도 VITE_API_URL이 localhost면 그대로 사용 → 로컬 백엔드만 쓸 때 BACKEND_URL 없이 동작
+    baseUrl = apiUrl && isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
   } else if (isDev) {
-    // 로컬 개발: baseURL 비움 → 상대 경로 /api/... 가 Vite 프록시로 8000 전달
     baseUrl = ''
   }
 } catch (_) {
