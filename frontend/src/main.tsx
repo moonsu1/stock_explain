@@ -9,11 +9,10 @@ import './index.css'
 
 const apiUrl = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '').trim()
 const isDev = import.meta.env.DEV
-const isLocalhostUrl = (url: string) => /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
 let baseUrl = apiUrl
 try {
   if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
-    baseUrl = apiUrl && !isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
+    baseUrl = '/api/proxy'
   } else if (isDev) {
     baseUrl = ''
   }

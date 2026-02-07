@@ -10,7 +10,9 @@ const FORWARD_HEADERS = ['content-type', 'accept', 'accept-language', 'authoriza
 
 function getTargetUrl(pathSegments: string[], search: string): string {
   const base = BACKEND_URL.replace(/\/$/, '')
-  const path = pathSegments.length ? '/' + pathSegments.join('/') : ''
+  const pathStr = pathSegments.length ? pathSegments.join('/') : ''
+  const pathWithApi = pathStr.startsWith('api/') ? pathStr : pathStr ? `api/${pathStr}` : 'api'
+  const path = '/' + pathWithApi
   return `${base}${path}${search || ''}`
 }
 
