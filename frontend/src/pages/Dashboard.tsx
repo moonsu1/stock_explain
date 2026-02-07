@@ -39,6 +39,27 @@ interface PortfolioSummary {
   profitPercent: number
 }
 
+const DUMMY_INDICES: IndexData[] = [
+  { name: '코스피', value: 2650.28, change: 15.32, changePercent: 0.58 },
+  { name: '코스닥', value: 862.45, change: -8.21, changePercent: -0.94 },
+  { name: '나스닥', value: 15628.95, change: 128.52, changePercent: 0.83 },
+]
+const DUMMY_COMMODITIES: IndexData[] = [
+  { name: '니케이225', value: 38500.00, change: 150.00, changePercent: 0.39 },
+  { name: '금', value: 2850.50, change: 12.30, changePercent: 0.43 },
+  { name: '은', value: 32.15, change: -0.25, changePercent: -0.77 },
+  { name: '구리', value: 4.25, change: 0.05, changePercent: 1.19 },
+]
+
+function normalizePortfolio(raw: unknown): PortfolioSummary | null {
+  if (raw == null || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const totalValue = Number(o.totalValue ?? o.total_value) || 0
+  const totalProfit = Number(o.totalProfit ?? o.total_profit) ?? 0
+  const profitPercent = Number(o.profitPercent ?? o.profit_percent) ?? 0
+  return { totalValue, totalProfit, profitPercent }
+}
+
 export default function Dashboard() {
   const [indices, setIndices] = useState<IndexData[]>([])
   const [commodities, setCommodities] = useState<IndexData[]>([])
@@ -70,47 +91,27 @@ export default function Dashboard() {
           axios.get('/api/market/commodities'),
           axios.get('/api/portfolio/summary'),
         ])
-        setIndices(Array.isArray(indicesRes.data) ? indicesRes.data : [])
-        setCommodities(Array.isArray(commoditiesRes.data) ? commoditiesRes.data : [])
+        const indicesArr = Array.isArray(indicesRes.data) ? indicesRes.data : []
+        const commoditiesArr = Array.isArray(commoditiesRes.data) ? commoditiesRes.data : []
+        setIndices(indicesArr.length > 0 ? indicesArr : DUMMY_INDICES)
+        setCommodities(commoditiesArr.length > 0 ? commoditiesArr : DUMMY_COMMODITIES)
         const saved = getSavedPortfolio()
         if (saved) {
-          setPortfolio({
-            totalValue: saved.totalValue,
-            totalProfit: saved.totalProfit,
-            profitPercent: saved.profitPercent,
-          })
+          setPortfolio(normalizePortfolio(saved) ?? { totalValue: 0, totalProfit: 0, profitPercent: 0 })
           setPortfolioFromManual(true)
         } else {
-          setPortfolio(portfolioRes.data)
+          setPortfolio(normalizePortfolio(portfolioRes.data) ?? { totalValue: 0, totalProfit: 0, profitPercent: 0 })
         }
       } catch (error) {
         console.error('데이터 로딩 실패:', error)
-        // 더미 데이터 설정
-        setIndices([
-          { name: '코스피', value: 2650.28, change: 15.32, changePercent: 0.58 },
-          { name: '코스닥', value: 862.45, change: -8.21, changePercent: -0.94 },
-          { name: '나스닥', value: 15628.95, change: 128.52, changePercent: 0.83 },
-        ])
-        setCommodities([
-          { name: '니케이225', value: 38500.00, change: 150.00, changePercent: 0.39 },
-          { name: '금', value: 2850.50, change: 12.30, changePercent: 0.43 },
-          { name: '은', value: 32.15, change: -0.25, changePercent: -0.77 },
-          { name: '구리', value: 4.25, change: 0.05, changePercent: 1.19 },
-        ])
+        setIndices(DUMMY_INDICES)
+        setCommodities(DUMMY_COMMODITIES)
         const saved = getSavedPortfolio()
         if (saved) {
-          setPortfolio({
-            totalValue: saved.totalValue,
-            totalProfit: saved.totalProfit,
-            profitPercent: saved.profitPercent,
-          })
+          setPortfolio(normalizePortfolio(saved) ?? { totalValue: 0, totalProfit: 0, profitPercent: 0 })
           setPortfolioFromManual(true)
         } else {
-          setPortfolio({
-            totalValue: 15250000,
-            totalProfit: 1250000,
-            profitPercent: 8.93,
-          })
+          setPortfolio({ totalValue: 15250000, totalProfit: 1250000, profitPercent: 8.93 })
         }
       } finally {
         setLoading(false)

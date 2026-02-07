@@ -67,8 +67,8 @@ export default function Portfolio() {
           axios.get('/api/portfolio/account'),
           axios.get('/api/portfolio/stocks'),
         ])
-        setAccount(accRes.data)
-        setStocks(stRes.data)
+        setAccount(accRes?.data ?? null)
+        setStocks(Array.isArray(stRes?.data) ? stRes.data : [])
         setIsFromSaved(false)
       }
     } catch (e) {
@@ -77,8 +77,8 @@ export default function Portfolio() {
         axios.get('/api/portfolio/account').catch(() => ({ data: null })),
         axios.get('/api/portfolio/stocks').catch(() => ({ data: [] })),
       ])
-      if (accRes?.data) setAccount(accRes.data)
-      if (stRes?.data) setStocks(stRes.data)
+      if (accRes?.data != null) setAccount(accRes.data)
+      setStocks(Array.isArray(stRes?.data) ? stRes.data : [])
     } finally {
       setLoading(false)
     }
@@ -87,7 +87,7 @@ export default function Portfolio() {
   const fetchStocks = async () => {
     try {
       const res = await axios.get<Stock[]>('/api/portfolio/stocks')
-      setStocks(res.data ?? [])
+      setStocks(Array.isArray(res?.data) ? res.data : [])
     } catch {
       setStocks([])
     }
@@ -343,16 +343,16 @@ export default function Portfolio() {
           </div>
           <div className="card">
             <p className="text-sm text-gray-500">예수금</p>
-            <p className="text-lg font-semibold mt-1">{account.totalDeposit.toLocaleString()}원</p>
+            <p className="text-lg font-semibold mt-1">{(Number(account?.totalDeposit) || 0).toLocaleString()}원</p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-500">총 평가금액</p>
-            <p className="text-lg font-semibold mt-1">{account.totalEvaluation.toLocaleString()}원</p>
+            <p className="text-lg font-semibold mt-1">{(Number(account?.totalEvaluation) || 0).toLocaleString()}원</p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-500">총 수익</p>
-            <p className={`text-lg font-semibold mt-1 ${account.totalProfit >= 0 ? 'text-up' : 'text-down'}`}>
-              {account.totalProfit >= 0 ? '+' : ''}{account.totalProfit.toLocaleString()}원
+            <p className={`text-lg font-semibold mt-1 ${(Number(account?.totalProfit) ?? 0) >= 0 ? 'text-up' : 'text-down'}`}>
+              {(Number(account?.totalProfit) ?? 0) >= 0 ? '+' : ''}{(Number(account?.totalProfit) || 0).toLocaleString()}원
             </p>
           </div>
         </div>
@@ -371,31 +371,37 @@ export default function Portfolio() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {stocks.map((stock) => (
-              <tr key={stock.code} className="hover:bg-gray-50">
+            {(Array.isArray(stocks) ? stocks : []).map((stock, idx) => {
+              const qty = Number(stock?.quantity) ?? 0
+              const avg = Number(stock?.avgPrice) ?? 0
+              const cur = Number(stock?.currentPrice) ?? 0
+              const profit = Number(stock?.profit) ?? 0
+              const pct = Number(stock?.profitPercent) ?? 0
+              return (
+              <tr key={stock?.code ?? stock?.name ?? idx} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div>
-                    <p className="font-medium text-gray-900">{stock.name}</p>
-                    <p className="text-sm text-gray-500">{stock.code}</p>
+                    <p className="font-medium text-gray-900">{stock?.name ?? '-'}</p>
+                    <p className="text-sm text-gray-500">{stock?.code ?? ''}</p>
                   </div>
                 </td>
-                <td className="text-right px-6 py-4 font-medium">{stock.quantity.toLocaleString()}주</td>
-                <td className="text-right px-6 py-4">{stock.avgPrice.toLocaleString()}원</td>
-                <td className="text-right px-6 py-4 font-medium">{stock.currentPrice.toLocaleString()}원</td>
-                <td className={`text-right px-6 py-4 font-medium ${stock.profit >= 0 ? 'text-up' : 'text-down'}`}>
+                <td className="text-right px-6 py-4 font-medium">{qty.toLocaleString()}주</td>
+                <td className="text-right px-6 py-4">{avg.toLocaleString()}원</td>
+                <td className="text-right px-6 py-4 font-medium">{cur.toLocaleString()}원</td>
+                <td className={`text-right px-6 py-4 font-medium ${profit >= 0 ? 'text-up' : 'text-down'}`}>
                   <div className="flex items-center justify-end gap-1">
-                    {stock.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    {stock.profit >= 0 ? '+' : ''}{stock.profit.toLocaleString()}원
+                    {profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    {profit >= 0 ? '+' : ''}{profit.toLocaleString()}원
                   </div>
                 </td>
-                <td className={`text-right px-6 py-4 font-medium ${stock.profitPercent >= 0 ? 'text-up' : 'text-down'}`}>
-                  {stock.profitPercent >= 0 ? '+' : ''}{stock.profitPercent.toFixed(2)}%
+                <td className={`text-right px-6 py-4 font-medium ${pct >= 0 ? 'text-up' : 'text-down'}`}>
+                  {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
-        {stocks.length === 0 && (
+        {(Array.isArray(stocks) ? stocks : []).length === 0 && (
           <div className="py-12 text-center text-gray-500">보유 종목이 없거나 API에서 가져올 수 없습니다.</div>
         )}
       </div>

@@ -297,7 +297,7 @@ export default function Analysis() {
     setLoading(true)
     try {
       const response = await axios.get('/api/analysis/news')
-      setNews(response.data)
+      setNews(Array.isArray(response?.data) ? response.data : [])
     } catch (error) {
       console.error('뉴스 로딩 실패:', error)
       setNews([
@@ -668,8 +668,8 @@ export default function Analysis() {
                 <h3 className="font-semibold">유망 테마 TOP 3</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[streamingSections.theme1, streamingSections.theme2, streamingSections.theme3].map((theme, index) => (
-                  theme.name && (
+                {[streamingSections.theme1, streamingSections.theme2, streamingSections.theme3].map((theme, index) =>
+                  theme?.name ? (
                     <div key={index} className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-100">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
@@ -678,12 +678,12 @@ export default function Analysis() {
                         <h4 className="font-semibold text-gray-800">{theme.name}</h4>
                       </div>
                       <p className="text-sm text-gray-600 whitespace-pre-line">
-                        {theme.content}
+                        {theme?.content ?? ''}
                         {isStreaming && currentSection.includes(`${index + 1}.`) && <span className="animate-pulse">|</span>}
                       </p>
                     </div>
-                  )
-                ))}
+                  ) : null
+                )}
               </div>
             </div>
           )}
@@ -697,9 +697,9 @@ export default function Analysis() {
                 <ClipboardList className="w-5 h-5 text-indigo-600" />
                 <h4 className="font-semibold text-indigo-700">보유 종목 전망 및 전략</h4>
               </div>
-              {holdingCards ? (
+              {holdingCards && Array.isArray(holdingCards) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {holdingCards.map((card, idx) => (
+                  {(holdingCards as HoldingCard[]).map((card, idx) => (
                     <div key={idx} className="bg-white rounded-xl border border-indigo-100 p-4 shadow-sm hover:shadow-md transition-shadow">
                       <div className="font-semibold text-indigo-800 mb-3 pb-2 border-b border-indigo-100">{card.name}</div>
                       {card.outlook && <p className="text-sm text-gray-600 mb-2"><span className="text-indigo-600 font-medium">전망</span> {card.outlook}</p>}
@@ -873,9 +873,9 @@ export default function Analysis() {
             </div>
             {(() => {
               const holdingCards = analysis.holdingsStrategy ? parseHoldingsStrategy(analysis.holdingsStrategy) : null
-              return holdingCards ? (
+              return holdingCards && Array.isArray(holdingCards) ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {holdingCards.map((card, idx) => (
+                {(holdingCards as HoldingCard[]).map((card, idx) => (
                   <div key={idx} className="bg-white rounded-xl border border-indigo-100 p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="font-semibold text-indigo-800 mb-3 pb-2 border-b border-indigo-100">{card.name}</div>
                     {card.outlook && <p className="text-sm text-gray-600 mb-2"><span className="text-indigo-600 font-medium">전망</span> {card.outlook}</p>}
@@ -917,30 +917,30 @@ export default function Analysis() {
           </div>
 
           {/* 유망 테마 */}
-          {analysis.hotThemes && analysis.hotThemes.length > 0 && (
+          {Array.isArray(analysis.hotThemes) && analysis.hotThemes.length > 0 && (
             <div className="card">
               <div className="flex items-center gap-2 mb-4">
                 <Flame className="w-5 h-5 text-orange-500" />
                 <h3 className="font-semibold">유망 테마 TOP 3</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {analysis.hotThemes.map((theme, index) => (
-                  <div key={index} className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-100">
+                {(Array.isArray(analysis.hotThemes) ? analysis.hotThemes : []).map((theme, index) => (
+                    <div key={index} className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-100">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
                         {index + 1}
                       </span>
-                      <h4 className="font-semibold text-gray-800">{theme.name}</h4>
+                      <h4 className="font-semibold text-gray-800">{theme?.name ?? ''}</h4>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{theme.reason}</p>
+                    <p className="text-sm text-gray-600 mb-3">{theme?.reason ?? ''}</p>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">코스피 대장주</span>
-                        <span className="font-medium text-red-600">{theme.kospiLeader}</span>
+                        <span className="font-medium text-red-600">{theme?.kospiLeader ?? '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">코스닥 대장주</span>
-                        <span className="font-medium text-blue-600">{theme.kosdaqLeader}</span>
+                        <span className="font-medium text-blue-600">{theme?.kosdaqLeader ?? '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -952,14 +952,14 @@ export default function Analysis() {
           {/* 리스크 요인 & 액션 아이템 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 리스크 요인 */}
-            {analysis.riskFactors && analysis.riskFactors.length > 0 && (
+            {Array.isArray(analysis.riskFactors) && analysis.riskFactors.length > 0 && (
               <div className="card border-l-4 border-l-red-400">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle className="w-5 h-5 text-red-500" />
                   <h4 className="font-semibold text-red-700">리스크 요인</h4>
                 </div>
                 <ul className="space-y-2">
-                  {analysis.riskFactors.map((risk, index) => (
+                  {(Array.isArray(analysis.riskFactors) ? analysis.riskFactors : []).map((risk, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
                       <span className="text-red-400 mt-1">•</span>
                       {risk}
@@ -970,14 +970,14 @@ export default function Analysis() {
             )}
 
             {/* 액션 아이템 */}
-            {analysis.actionItems && analysis.actionItems.length > 0 && (
+            {Array.isArray(analysis.actionItems) && analysis.actionItems.length > 0 && (
               <div className="card border-l-4 border-l-green-400">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle className="w-5 h-5 text-green-500" />
                   <h4 className="font-semibold text-green-700">액션 아이템</h4>
                 </div>
                 <ul className="space-y-2">
-                  {analysis.actionItems.map((action, index) => (
+                  {(Array.isArray(analysis.actionItems) ? analysis.actionItems : []).map((action, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
                       <span className="text-green-400 mt-1">•</span>
                       {action}
@@ -1016,19 +1016,19 @@ export default function Analysis() {
           </button>
         </div>
         <div className="divide-y divide-gray-100">
-          {news.map((item, index) => (
+          {(Array.isArray(news) ? news : []).map((item, index) => (
             <a
               key={index}
-              href={item.url}
+              href={item?.url ?? '#'}
               target="_blank"
               rel="noopener noreferrer"
               className="block py-3 hover:bg-gray-50 -mx-6 px-6 transition-colors"
             >
-              <p className="text-gray-900 font-medium">{item.title}</p>
+              <p className="text-gray-900 font-medium">{item?.title ?? ''}</p>
               <div className="flex gap-2 mt-1 text-sm text-gray-500">
-                <span>{item.source}</span>
+                <span>{item?.source ?? '-'}</span>
                 <span>·</span>
-                <span>{item.time}</span>
+                <span>{item?.time ?? '-'}</span>
               </div>
             </a>
           ))}
