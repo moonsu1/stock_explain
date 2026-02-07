@@ -87,6 +87,18 @@ Forwarding    https://abcd-12-34-56-78.ngrok-free.app -> http://localhost:8000
 
 - **ngrok 끄면** 그 주소로 접속 안 됨. 모바일 쓸 때만 ngrok 켜 두면 됨.
 - **ngrok 다시 켜면** 주소가 바뀌므로, **Vercel `BACKEND_URL`**을 새 주소로 바꾸고 **Redeploy** 해야 해.
-- ngrok 무료는 가끔 브라우저에 “Visit Site” 버튼 나오는 페이지를 먼저 띄울 수 있음. 그건 브라우저에서 한 번 넘기면 되고, **Vercel 프록시**가 보내는 요청은 보통 그냥 통과해.
+- ngrok 무료는 가끔 브라우저에 “Visit Site” 버튼 나오는 페이지를 먼저 띄울 수 있음. 그건 브라우저에서 한 번 넘기면 되고, **Vercel 프록시**는 `ngrok-skip-browser-warning` 헤더를 붙여서 보냄.
+
+### 405가 날 때 (PC에서 확인)
+
+백엔드 + ngrok 켜 둔 상태에서 **PC 터미널**에서:
+
+```bash
+curl -X POST "https://여기에_ngrok주소/api/portfolio/connect" -H "ngrok-skip-browser-warning: true" -H "Content-Type: application/json"
+```
+
+- 200 또는 JSON 나오면 → 백엔드·ngrok은 정상. Vercel 재배포 확인.
+- 405 나오면 → 백엔드가 POST를 안 받는 상태. 백엔드 재시작·라우트 확인.
+- 502/연결 실패 → ngrok 터널·백엔드 8000 포트 확인.
 
 끝.

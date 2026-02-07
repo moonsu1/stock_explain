@@ -50,16 +50,31 @@ export default async function handler(request: Request): Promise<Response> {
   const search = url.search || ''
 
   const targetUrl = getTargetUrl(pathSegments, search)
-  const method = request.method
+  const method = (request.method || 'GET').toUpperCase()
   const headers = forwardRequestHeaders(request)
-  // ngrok 무료: 서버 요청 시 이 헤더 없으면 차단/403 등 → 405처럼 보일 수 있음
   if (BACKEND_URL.includes('ngrok-free.app') || BACKEND_URL.includes('ngrok.io')) {
     headers['ngrok-skip-browser-warning'] = 'true'
+    headers['User-Agent'] = headers['user-agent'] || 'Mozilla/5.0 (compatible; VercelProxy/1.0)'
   }
   const body = method !== 'GET' && method !== 'HEAD' ? await request.arrayBuffer() : undefined
 
   try {
-    const res = await fetch(targetUrl, { method, headers, body })
+    // redirect: 'manual' → ngrok이 302 주면 따라가며 POST가 GET으로 바뀌어 405 나는 것 방지
+    const res = await fetch(targetUrl, {
+      method,
+      headers,
+      body,
+      redirect: BACKEND_URL.includes('ngrok') ? 'manual' : 'follow',
+    })
+    if (BACKEND_URL.includes('ngrok') && (res.status === 301 || res.status === 302)) {
+      return new Response(
+        JSON.stringify({
+          error: 'ngrok redirect received. Ensure backend is running and ngrok tunnel is active.',
+          hint: 'Restart ngrok and update BACKEND_URL if the URL changed.',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
     const resHeaders = responseHeaders(res)
     return new Response(res.body, { status: res.status, headers: resHeaders })
   } catch (e) {
