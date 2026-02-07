@@ -2,6 +2,7 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, PieChart, LineChart, Bot, AlertCircle, X } from 'lucide-react'
 import clsx from 'clsx'
 import { useErrorLog } from '../contexts/ErrorLogContext'
+import type { ErrorEntry } from '../utils/errorLog'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
@@ -93,7 +94,7 @@ export default function Layout() {
               {errors.length === 0 ? (
                 <p className="text-sm text-gray-500">저장된 에러 없음</p>
               ) : (
-                errors.map((e, i) => (
+                errors.map((e: ErrorEntry, i: number) => (
                   <div key={i} className="text-xs rounded-lg bg-red-50 border border-red-100 p-3 space-y-1">
                     <div className="text-red-700 font-medium">{e.message}</div>
                     {e.url && <div className="text-gray-600 truncate">URL: {e.url}</div>}

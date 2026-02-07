@@ -3,7 +3,7 @@
  * Vercel 배포 시 getApiBaseUrl()이 /api/proxy 를 반환해 프록시로 가도록 함.
  * (VITE_API_URL 은 빌드 시에만 주입되므로, Vercel에서 비워두면 '/api'로 떨어져 404 난다.)
  */
-import axios from 'axios'
+import axios, { type AxiosResponse, type AxiosError } from 'axios'
 import { getApiBaseUrl } from '../utils/apiBase'
 
 const API_BASE_URL = getApiBaseUrl() || import.meta.env.VITE_API_URL || '/api'
@@ -18,8 +18,8 @@ export const apiClient = axios.create({
 
 // 응답 인터셉터
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
     console.error('API Error:', error.response?.data || error.message)
     return Promise.reject(error)
   }
