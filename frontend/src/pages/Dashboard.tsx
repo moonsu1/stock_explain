@@ -139,15 +139,19 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">주요 지수</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(Array.isArray(indices) ? indices : []).map((index) => (
-            <div key={index.name} className="card">
+          {(Array.isArray(indices) ? indices : []).map((index) => {
+            const val = Number(index?.value) || 0
+            const ch = Number(index?.change) ?? 0
+            const chPct = Number(index?.changePercent) ?? 0
+            return (
+            <div key={index?.name ?? index} className="card">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm text-gray-500">{index.name}</p>
-                  <p className="text-2xl font-bold mt-1">{index.value.toLocaleString()}</p>
+                  <p className="text-sm text-gray-500">{index?.name ?? '-'}</p>
+                  <p className="text-2xl font-bold mt-1">{val.toLocaleString()}</p>
                 </div>
-                <div className={`p-2 rounded-lg ${index.change >= 0 ? 'bg-up' : 'bg-down'}`}>
-                  {index.change >= 0 ? (
+                <div className={`p-2 rounded-lg ${ch >= 0 ? 'bg-up' : 'bg-down'}`}>
+                  {ch >= 0 ? (
                     <TrendingUp className="w-5 h-5 text-red-500" />
                   ) : (
                     <TrendingDown className="w-5 h-5 text-blue-500" />
@@ -155,11 +159,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="mt-4 flex justify-between items-center">
-                <span className={index.change >= 0 ? 'text-up' : 'text-down'}>
-                  {index.change >= 0 ? '+' : ''}{index.change.toFixed(2)} ({index.changePercent.toFixed(2)}%)
+                <span className={ch >= 0 ? 'text-up' : 'text-down'}>
+                  {ch >= 0 ? '+' : ''}{ch.toFixed(2)} ({chPct.toFixed(2)}%)
                 </span>
                 <button
-                  onClick={() => openChart(index.name)}
+                  onClick={() => openChart(index?.name ?? '')}
                   className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   <BarChart2 className="w-4 h-4" />
@@ -167,7 +171,8 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 
@@ -175,19 +180,23 @@ export default function Dashboard() {
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-3">원자재 & 해외 지수</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {(Array.isArray(commodities) ? commodities : []).map((item) => (
-            <div key={item.name} className="card">
+          {(Array.isArray(commodities) ? commodities : []).map((item) => {
+            const val = Number(item?.value) || 0
+            const ch = Number(item?.change) ?? 0
+            const chPct = Number(item?.changePercent) ?? 0
+            const name = item?.name ?? '-'
+            const isDollar = name === '금' || name === '은' || name === '구리'
+            return (
+            <div key={name} className="card">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm text-gray-500">{item.name}</p>
+                  <p className="text-sm text-gray-500">{name}</p>
                   <p className="text-xl font-bold mt-1">
-                    {item.name === '금' || item.name === '은' || item.name === '구리' 
-                      ? `$${item.value.toLocaleString()}` 
-                      : item.value.toLocaleString()}
+                    {isDollar ? `$${val.toLocaleString()}` : val.toLocaleString()}
                   </p>
                 </div>
-                <div className={`p-1.5 rounded-lg ${item.change >= 0 ? 'bg-up' : 'bg-down'}`}>
-                  {item.change >= 0 ? (
+                <div className={`p-1.5 rounded-lg ${ch >= 0 ? 'bg-up' : 'bg-down'}`}>
+                  {ch >= 0 ? (
                     <TrendingUp className="w-4 h-4 text-red-500" />
                   ) : (
                     <TrendingDown className="w-4 h-4 text-blue-500" />
@@ -195,11 +204,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="mt-3 flex justify-between items-center">
-                <span className={`text-sm ${item.change >= 0 ? 'text-up' : 'text-down'}`}>
-                  {item.change >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
+                <span className={`text-sm ${ch >= 0 ? 'text-up' : 'text-down'}`}>
+                  {ch >= 0 ? '+' : ''}{chPct.toFixed(2)}%
                 </span>
                 <button
-                  onClick={() => openChart(item.name)}
+                  onClick={() => openChart(name)}
                   className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   <BarChart2 className="w-3 h-3" />
@@ -207,7 +216,8 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 
@@ -236,20 +246,20 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">총 평가금액</p>
-                <p className="text-2xl font-bold">{portfolio.totalValue.toLocaleString()}원</p>
+                <p className="text-2xl font-bold">{(Number(portfolio?.totalValue) || 0).toLocaleString()}원</p>
               </div>
             </div>
           </div>
           <div className="card">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-lg ${portfolio.totalProfit >= 0 ? 'bg-up' : 'bg-down'}`}>
-                <Activity className={`w-6 h-6 ${portfolio.totalProfit >= 0 ? 'text-red-500' : 'text-blue-500'}`} />
+              <div className={`p-3 rounded-lg ${(Number(portfolio?.totalProfit) ?? 0) >= 0 ? 'bg-up' : 'bg-down'}`}>
+                <Activity className={`w-6 h-6 ${(Number(portfolio?.totalProfit) ?? 0) >= 0 ? 'text-red-500' : 'text-blue-500'}`} />
               </div>
               <div>
                 <p className="text-sm text-gray-500">총 수익</p>
-                <p className={`text-2xl font-bold ${portfolio.totalProfit >= 0 ? 'text-up' : 'text-down'}`}>
-                  {portfolio.totalProfit >= 0 ? '+' : ''}{portfolio.totalProfit.toLocaleString()}원
-                  <span className="text-base ml-2">({portfolio.profitPercent.toFixed(2)}%)</span>
+                <p className={`text-2xl font-bold ${(Number(portfolio?.totalProfit) ?? 0) >= 0 ? 'text-up' : 'text-down'}`}>
+                  {(Number(portfolio?.totalProfit) ?? 0) >= 0 ? '+' : ''}{(Number(portfolio?.totalProfit) || 0).toLocaleString()}원
+                  <span className="text-base ml-2">({(Number(portfolio?.profitPercent) ?? 0).toFixed(2)}%)</span>
                 </p>
               </div>
             </div>
