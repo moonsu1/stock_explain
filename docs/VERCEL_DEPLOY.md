@@ -26,6 +26,14 @@
 
 > `VITE_` 로 시작하는 변수만 빌드 시 프론트 코드에 들어가므로, 이름을 정확히 `VITE_API_URL`로 해야 합니다.
 
+### 카톡/인앱 브라우저에서만 안 될 때 (모바일)
+
+브라우저에서는 되는데 **카톡으로 링크 열면** Network Error / Failed to fetch가 나는 경우, 인앱 브라우저가 크로스 오리진 요청을 막는 경우가 많습니다.
+
+- **해결**: Vercel에서 **같은 오리진 프록시**를 쓰도록 되어 있습니다. Vercel 환경 변수에 **`BACKEND_URL`**을 꼭 넣어 주세요 (값은 `VITE_API_URL`과 동일한 백엔드 주소).
+- 그러면 Vercel 배포 시 모든 API 요청이 `stockexplain.vercel.app/api/proxy/...` 로 가고, Vercel 서버가 백엔드로 대신 요청해서 응답을 돌려줍니다. 브라우저 입장에선 같은 도메인이라 CORS/인앱 제한에 안 걸립니다.
+- **필수**: `BACKEND_URL` = 백엔드 URL (예: `https://xxx.up.railway.app`) 설정 후 재배포.
+
 ## 확인
 
 재배포 후 시황 분석 페이지에서 "Failed to fetch"가 사라지고, 실시간 분석·뉴스가 로드되면 정상 연결된 것입니다.

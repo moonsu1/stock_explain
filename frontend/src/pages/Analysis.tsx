@@ -5,6 +5,7 @@ import {
   BarChart3, ArrowUpCircle, ArrowDownCircle, Zap, Coins, ClipboardList
 } from 'lucide-react'
 import axios from 'axios'
+import { getApiBaseForFetch } from '../utils/apiBase'
 
 interface NewsItem {
   title: string
@@ -406,13 +407,13 @@ export default function Analysis() {
       } catch {
         // 보유 종목 없으면 빈 배열로 진행
       }
-      const apiUrl = import.meta.env.VITE_API_URL || ''
+      const apiBase = getApiBaseForFetch()
       // GET + code:name 쿼리 사용 (POST 시 405 나는 환경 회피)
       const holdingsParam = holdings.length
         ? '?holdings=' + encodeURIComponent(holdings.map((h) => `${h.code}:${h.name}`).join(','))
         : ''
       console.log('[Stream] Fetching streaming API, holdings:', holdings.length)
-      const response = await fetch(`${apiUrl}/api/analysis/generate/stream${holdingsParam}`)
+      const response = await fetch(`${apiBase}/api/analysis/generate/stream${holdingsParam}`)
       console.log('[Stream] Response status:', response.status, response.ok)
       
       if (!response.ok) {
