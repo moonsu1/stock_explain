@@ -6,7 +6,7 @@
 import axios, { type AxiosResponse, type AxiosError } from 'axios'
 import { getApiBaseUrl } from '../utils/apiBase'
 
-const API_BASE_URL = getApiBaseUrl() || import.meta.env.VITE_API_URL || '/api'
+const API_BASE_URL = getApiBaseUrl() || (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '/api')
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

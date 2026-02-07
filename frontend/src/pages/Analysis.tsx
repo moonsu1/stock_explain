@@ -418,11 +418,11 @@ export default function Analysis() {
       } catch {
         // 보유 종목 없으면 빈 배열로 진행
       }
-      let apiBase = import.meta.env.VITE_API_URL || ''
+      let apiBase = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '').trim()
       try {
         apiBase = getApiBaseForFetch()
       } catch {
-        apiBase = import.meta.env.VITE_API_URL || ''
+        apiBase = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '').trim()
       }
       // GET + code:name 쿼리 사용 (POST 시 405 나는 환경 회피)
       const holdingsParam = holdings.length

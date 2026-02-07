@@ -7,19 +7,13 @@ import { ErrorLogProvider } from './contexts/ErrorLogContext'
 import { pushError } from './utils/errorLog'
 import './index.css'
 
-const apiUrl = (import.meta.env.VITE_API_URL || '').trim()
+const apiUrl = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '').trim()
 const isDev = import.meta.env.DEV
 const isLocalhostUrl = (url: string) => /^https?:\/\/localhost(:\d+)?(\/|$)/i.test(url)
-const isMobile = () => typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 let baseUrl = apiUrl
 try {
   if (typeof window !== 'undefined' && window.location?.hostname?.includes?.('vercel.app')) {
-    // 모바일에서는 localhost = 기기 자신이라 백엔드 연결 불가 → 무조건 프록시 사용 (BACKEND_URL 필요)
-    if (isMobile()) {
-      baseUrl = '/api/proxy'
-    } else {
-      baseUrl = apiUrl && isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
-    }
+    baseUrl = apiUrl && !isLocalhostUrl(apiUrl) ? apiUrl : '/api/proxy'
   } else if (isDev) {
     baseUrl = ''
   }

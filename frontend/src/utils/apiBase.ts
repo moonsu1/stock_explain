@@ -1,9 +1,9 @@
 /**
- * Vercel 배포 시 같은 오리진 프록시 사용.
- * 로컬 개발(DEV) 시에는 빈 문자열 → 상대 경로로 Vite 프록시 사용.
+ * Vercel 배포 시: VITE_BACKEND_URL 있으면 직접 호출, 없으면 /api/proxy 사용.
+ * 로컬 개발(DEV) 시에는 빈 문자열 → Vite 프록시 사용.
  */
-const buildTimeApiUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-  ? String(import.meta.env.VITE_API_URL).trim()
+const buildTimeApiUrl = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_BACKEND_URL || import.meta.env?.VITE_API_URL)
+  ? String(import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL).trim()
   : ''
 
 function isVercelHost(): boolean {
@@ -25,10 +25,9 @@ function isMobile(): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-/** API 요청 시 사용할 base URL. 모바일+Vercel이면 무조건 프록시 (localhost 불가) */
+/** API 요청 시 사용할 base URL. VITE_BACKEND_URL 있으면 직접 호출, 없으면 /api/proxy */
 export function getApiBaseUrl(): string {
-  if (isVercelHost() && isMobile()) return '/api/proxy'
-  if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
+  if (isVercelHost() && buildTimeApiUrl && !isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
   if (isDev()) return ''
   return buildTimeApiUrl
@@ -36,8 +35,7 @@ export function getApiBaseUrl(): string {
 
 /** 스트리밍 등 fetch()에 넣을 base (끝에 / 없음) */
 export function getApiBaseForFetch(): string {
-  if (isVercelHost() && isMobile()) return '/api/proxy'
-  if (isVercelHost() && buildTimeApiUrl && isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
+  if (isVercelHost() && buildTimeApiUrl && !isLocalhostUrl(buildTimeApiUrl)) return buildTimeApiUrl
   if (isVercelHost()) return '/api/proxy'
   if (isDev()) return ''
   return buildTimeApiUrl
