@@ -59,8 +59,25 @@ def _is_vercel_origin(origin: str) -> bool:
     return o.endswith(".vercel.app") or o == "https://vercel.app" or ".vercel.app" in o
 
 
+def _is_inapp_browser_origin(origin: str) -> bool:
+    """카톡/인앱 브라우저는 링크 진입 시 Origin을 null 또는 빈 값으로 보냄."""
+    if not origin or not isinstance(origin, str):
+        return True
+    o = origin.strip().lower()
+    return o == "null" or o == ""
+
+
+def _allowed_origin_for_response(origin: str) -> str | None:
+    """이 출처면 응답에 그대로 반영해서 CORS 통과 (null = 인앱 브라우저)."""
+    if _is_vercel_origin(origin):
+        return origin
+    if _is_inapp_browser_origin(origin):
+        return "null" if (origin or "").strip().lower() == "null" else "*"
+    return None
+
+
 def _cors_headers(origin: str) -> dict:
-    allow_origin = origin if _is_vercel_origin(origin) else "*"
+    allow_origin = _allowed_origin_for_response(origin) or "*"
     return {
         "Access-Control-Allow-Origin": allow_origin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -78,13 +95,14 @@ class OptionsMiddleware(BaseHTTPMiddleware):
 
 
 class VercelCORSFixMiddleware(BaseHTTPMiddleware):
-    """Vercel 배포 URL은 푸시마다 바뀔 수 있어서, *.vercel.app 출처는 항상 허용."""
+    """Vercel·카톡 인앱 브라우저(Origin: null) 등에서 CORS 통과하도록 허용."""
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         origin = request.headers.get("origin") or ""
-        if _is_vercel_origin(origin):
-            response.headers["Access-Control-Allow-Origin"] = origin
+        allowed = _allowed_origin_for_response(origin)
+        if allowed is not None:
+            response.headers["Access-Control-Allow-Origin"] = allowed
             if "Access-Control-Allow-Credentials" not in response.headers:
                 response.headers["Access-Control-Allow-Credentials"] = "true"
         return response
@@ -95,10 +113,11 @@ if _frontend_origin:
     _cors_origins = [
         "http://localhost:3000", "http://localhost:5173", "http://localhost:5174",
         "http://localhost:5175", "http://localhost:5176",
+        "null",
     ] + [o.strip() for o in _frontend_origin.split(",") if o.strip()]
     _cors_credentials = True
 else:
-    _cors_origins = ["*"]
+    _cors_origins = ["*", "null"]
     _cors_credentials = False
 
 app.add_middleware(VercelCORSFixMiddleware)
